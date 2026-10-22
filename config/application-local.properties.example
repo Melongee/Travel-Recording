@@ -2,3 +2,5 @@
 # Choose SERVER (服务端) application type with search / WMTS permissions at https://console.tianditu.gov.cn/
 app.geography.tianditu-key=
 app.geography.offline=false
+# Disable for services without an interactive Windows desktop.
+app.desktop.enabled=true

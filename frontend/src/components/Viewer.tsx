@@ -1,12 +1,15 @@
 import {useEffect,useRef,useState} from 'react';
-import {ChevronLeft,ChevronRight,Info,X,ZoomIn,ZoomOut,Maximize2,Copy,Tag} from 'lucide-react';
+import {ChevronLeft,ChevronRight,Info,X,ZoomIn,ZoomOut,Maximize2,Copy,Tag,FolderOpen} from 'lucide-react';
 import ViewerFilmstrip from '../ViewerFilmstrip';
 import {PhotoImage} from './PhotoGrid';
 import type {Photo,Overview} from '../model';
 import {dateLabel} from '../model';
+import {api} from '../api';
 export default function Viewer({photos,id,total,title,overview,onSelect,onClose,onClassify,loadMore,hasMore,loadingMore}: {photos:Photo[];id:string;total:number;title:string;overview:Overview;onSelect:(id:string)=>void;onClose:()=>void;onClassify:()=>void;loadMore:()=>Promise<unknown>;hasMore:boolean;loadingMore:boolean}) {
   const [info,setInfo]=useState(()=>window.matchMedia('(min-width: 761px)').matches),[zoom,setZoom]=useState(1),[error,setError]=useState(''); const ref=useRef<HTMLDivElement>(null),pendingIndex=useRef<number|null>(null);
   const index=photos.findIndex(p=>p.id===id), photo=photos[index];
+  const [opening,setOpening]=useState(false),[revealResult,setRevealResult]=useState<{id:string;message:string;failed:boolean}|null>(null);
+  const reveal=async()=>{setOpening(true);setRevealResult(null);try{const result=await api<{message:string}>(`/photos/${id}/reveal`,{});setRevealResult({id,message:result.message,failed:false});}catch(e){setRevealResult({id,message:(e as Error).message,failed:true});}finally{setOpening(false);}};
   const select=(next:string)=>{onSelect(next);setZoom(1);};
   const step=async(delta:number)=>{
     if(index+delta>=photos.length&&hasMore){pendingIndex.current=index+delta;try{await loadMore();}catch(e){pendingIndex.current=null;setError((e as Error).message);}return;}
@@ -30,6 +33,6 @@ export default function Viewer({photos,id,total,title,overview,onSelect,onClose,
       <div className="viewer-bottom"><div className="viewer-bottom-meta"><span className="viewer-collection"><span className="viewer-collection-name">{title}</span><small>{index+1} / {total}</small></span>{hasMore&&<button className="text-button" disabled={loadingMore} onClick={()=>void loadMore().catch(e=>setError(String(e)))}>加载后续缩略图</button>}</div>
       <ViewerFilmstrip photos={photos} activeId={id} onSelect={select} renderThumbnail={p=><PhotoImage photo={p}/>}/>
     </div></div>{info&&<aside className="photo-info"><h2>照片信息</h2><div className="info-group"><label>原始文件名</label><p>{photo.fileName}</p><label>图像尺寸</label><p>{photo.width} × {photo.height}</p><label>拍摄时间</label><p>{photo.takenAt?.replace('T',' ')||'未知（排序使用文件时间）'}</p><label>旅行地点</label><p>{overview.places.find(p=>p.id===photo.placeId)?.name||'未分类'}</p><label>照片类别</label><div className="info-tags">{photo.categoryIds.map(c=><span key={c}>{overview.categories.find(x=>x.id===c)?.name}</span>)}</div></div>
-      <button className="button primary" onClick={onClassify}><Tag size={15}/>调整地点与类别</button><div className="info-path"><label>原始文件路径</label><code>{photo.path}</code><button className="text-button" onClick={()=>{void navigator.clipboard.writeText(photo.path).catch(()=>setError('复制失败，请选择路径文字复制'));}}><Copy size={13}/>复制路径</button><p className="muted-note">本轮可复制路径；打开资源管理器将在后续迭代接入。</p></div>{photo.error&&<p role="alert">{photo.error}</p>}{error&&<p role="alert">{error}</p>}
+      <button className="button primary" onClick={onClassify}><Tag size={15}/>调整地点与类别</button><div className="info-path"><label>原始文件路径</label><code>{photo.path}</code><button className="text-button" onClick={()=>{void navigator.clipboard.writeText(photo.path).catch(()=>setError('复制失败，请选择路径文字复制'));}}><Copy size={13}/>复制路径</button><button className="button secondary reveal-file" disabled={opening} onClick={()=>void reveal()}><FolderOpen size={15}/>{opening?'正在打开…':'打开所在文件夹'}</button>{revealResult?.id===id&&<p className={revealResult.failed?'form-error':'muted-note'} role={revealResult.failed?'alert':'status'}>{revealResult.message}</p>}</div>{photo.error&&<p role="alert">{photo.error}</p>}{error&&<p role="alert">{error}</p>}
     </aside>}</div></div>;
 }

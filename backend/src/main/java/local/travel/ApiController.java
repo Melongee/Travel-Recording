@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class ApiController {
-    final LibraryService library; final ScanService scans; final ImageService images;
-    ApiController(LibraryService library, ScanService scans, ImageService images) { this.library=library; this.scans=scans; this.images=images; }
+    final LibraryService library; final ScanService scans; final ImageService images; final FileRevealService files;
+    ApiController(LibraryService library, ScanService scans, ImageService images,FileRevealService files) { this.library=library; this.scans=scans; this.images=images;this.files=files; }
     @GetMapping("/health") Object health(@Value("${app.data-dir}") String dataDir) { return Map.of("app","travel-recording","version","0.1.0","dataDir",Path.of(dataDir).toAbsolutePath().normalize().toString()); }
     @GetMapping("/session") Object session(CsrfToken token) { return Map.of("token",token.getToken(),"headerName",token.getHeaderName()); }
     @GetMapping("/overview") Object overview() { return library.overview(); }
@@ -31,6 +31,7 @@ public class ApiController {
         @RequestParam(defaultValue="false") boolean unclassified,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="date-desc") String sort,
         @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="100") int size) { return library.query(placeId,categoryId,unclassified,q,sort,page,size); }
     @GetMapping("/photos/{id}") Object photo(@PathVariable String id) { return library.detail(id); }
+    @PostMapping("/photos/{id}/reveal") Object reveal(@PathVariable String id) throws IOException { return files.reveal(id); }
     @PostMapping("/photos/classify") Object classify(@Valid @RequestBody LibraryService.Classification input) { library.classify(input); return Map.of("saved",true); }
     @GetMapping("/photos/{id}/{kind:thumbnail|preview|original}") ResponseEntity<Resource> image(@PathVariable String id,@PathVariable String kind) throws IOException {
         var photo=library.requirePhoto(id);

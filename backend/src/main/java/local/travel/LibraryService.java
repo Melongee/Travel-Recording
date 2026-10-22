@@ -146,6 +146,7 @@ public class LibraryService {
     }
     @Transactional
     public void deletePlace(String id) {
+        if(places.selectById(id)==null)throw new NoSuchElementException("地点不存在或已被删除");
         jdbc.update("DELETE FROM photo_categories WHERE photo_id IN(SELECT id FROM photos WHERE place_id=?)",id);
         places.deleteById(id);
     }

@@ -4,6 +4,8 @@ server:
   error:
     include-message: always
 app:
+  desktop:
+    enabled: ${TRAVEL_DESKTOP:true}
   data-dir: ${TRAVEL_DATA_DIR:./data}
   geography:
     tianditu-key: ${TIANDITU_KEY:}

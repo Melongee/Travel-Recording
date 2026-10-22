@@ -75,6 +75,7 @@ class LibraryIntegrationTest {
         assertEquals(List.of(other.id),library.detail(photo.id()).categoryIds());
         library.deleteCategory(other.id);assertEquals(b.id,library.detail(photo.id()).placeId());assertTrue(library.detail(photo.id()).categoryIds().isEmpty());
         library.deletePlace(b.id);assertNull(library.detail(photo.id()).placeId());assertTrue(Files.exists(jpg));
+        assertThrows(NoSuchElementException.class,()->library.deletePlace(b.id));
         assertArrayEquals(before,hash(jpg));assertTrue(Files.isRegularFile(jpg));
     }
 }
