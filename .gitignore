@@ -14,6 +14,7 @@ artifacts/
 .env*
 !.env.example
 **/application-local.*
+!config/application-local.properties.example
 .idea/
 .vscode/
 Thumbs.db

@@ -20,11 +20,12 @@ public class ScanService {
     private final ImageService images;
     private final AppPaths paths;
     private final JdbcTemplate jdbc;
+    private final LibraryMaintenance maintenance;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private volatile Status status = new Status("idle", 0, 0, 0, 0, 0, 0, List.of());
     public record Status(String state, int discovered, int added, int updated, int unchanged, int failed, int missing, List<String> errors) {}
-    ScanService(RootMapper roots, PhotoMapper photos, ImageService images, AppPaths paths, JdbcTemplate jdbc) {
-        this.roots=roots; this.photos=photos; this.images=images; this.paths=paths; this.jdbc=jdbc;
+    ScanService(RootMapper roots, PhotoMapper photos, ImageService images, AppPaths paths, JdbcTemplate jdbc, LibraryMaintenance maintenance) {
+        this.roots=roots; this.photos=photos; this.images=images; this.paths=paths; this.jdbc=jdbc; this.maintenance=maintenance;
     }
     static String normalized(Path path) { return path.toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT); }
     static boolean isLink(Path path) throws IOException {
@@ -40,17 +41,31 @@ public class ScanService {
         if (real.startsWith(paths.data) || paths.data.startsWith(real)) throw new IllegalArgumentException("照片目录不能包含或位于应用数据目录");
         String key=normalized(real);
         Root existing=roots.selectOne(new QueryWrapper<Root>().eq("normalized_path",key));
-        if (existing!=null) return existing;
+        if (existing!=null) {
+            if ("needs_confirmation".equals(existing.status)) {
+                existing.enabled=true; existing.status="ready"; roots.updateById(existing);
+            }
+            return existing;
+        }
         Root r=new Root(); r.id=UUID.randomUUID().toString(); r.path=real.toString(); r.normalizedPath=key; r.enabled=true; r.status="ready";
         roots.insert(r); return r;
     }
     public Status current() { return status; }
+    public Root confirmRoot(String id) throws IOException {
+        Root root=roots.selectById(id);
+        if (root==null) throw new NoSuchElementException("目录不存在");
+        return addRoot(root.path);
+    }
     public synchronized Status start() {
         if (status.state.equals("running")) return status;
         status=new Status("running",0,0,0,0,0,0,List.of());
         worker.submit(this::run); return status;
     }
     private void run() {
+        try (var lease=maintenance.read()) { runWithAccess(); }
+        catch (Exception e) { status=new Status("failed",0,0,0,0,1,0,List.of(e.getMessage())); }
+    }
+    private void runWithAccess() {
         int[] c=new int[6]; List<String> errors=new ArrayList<>();
         try {
             for (Root root:roots.selectList(new QueryWrapper<Root>().eq("enabled",true))) {

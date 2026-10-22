@@ -5,7 +5,15 @@ server:
     include-message: always
 app:
   data-dir: ${TRAVEL_DATA_DIR:./data}
+  geography:
+    tianditu-key: ${TIANDITU_KEY:}
+    offline: ${TRAVEL_OFFLINE:false}
 spring:
+  servlet:
+    multipart:
+      max-file-size: 256MB
+      max-request-size: 257MB
+      location: ${app.data-dir}/uploads
   application:
     name: travel-recording
   datasource:

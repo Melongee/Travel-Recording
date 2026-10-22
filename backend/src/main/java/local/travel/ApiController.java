@@ -3,6 +3,7 @@ package local.travel;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Value;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import org.springframework.core.io.*;
@@ -17,11 +18,13 @@ import org.springframework.web.bind.annotation.*;
 public class ApiController {
     final LibraryService library; final ScanService scans; final ImageService images;
     ApiController(LibraryService library, ScanService scans, ImageService images) { this.library=library; this.scans=scans; this.images=images; }
+    @GetMapping("/health") Object health(@Value("${app.data-dir}") String dataDir) { return Map.of("app","travel-recording","version","0.1.0","dataDir",Path.of(dataDir).toAbsolutePath().normalize().toString()); }
     @GetMapping("/session") Object session(CsrfToken token) { return Map.of("token",token.getToken(),"headerName",token.getHeaderName()); }
     @GetMapping("/overview") Object overview() { return library.overview(); }
     @GetMapping("/roots") Object roots() { return library.allRoots(); }
     record RootInput(@NotBlank @Size(max=1024) String path) {}
     @PostMapping("/roots") Object root(@Valid @RequestBody RootInput input) throws IOException { return scans.addRoot(input.path); }
+    @PostMapping("/roots/{id}/confirm") Object confirmRoot(@PathVariable String id) throws IOException { return scans.confirmRoot(id); }
     @PostMapping("/scans") Object scan() { return scans.start(); }
     @GetMapping("/scans/current") Object scanState() { return scans.current(); }
     @GetMapping("/photos") Object photos(@RequestParam(required=false) String placeId,@RequestParam(required=false) String categoryId,
@@ -33,6 +36,7 @@ public class ApiController {
         var photo=library.requirePhoto(id);
         Path source=library.source(photo); // Even a cached response must respect current file availability and root scope.
         if (!"available".equals(photo.availability)) throw new IOException("图片不可用，请重新扫描");
+        if (kind.equals("thumbnail") && !Files.isRegularFile(library.thumbnail(photo))) images.index(source,photo.id,photo.version);
         Path file=switch(kind) { case "thumbnail" -> library.thumbnail(photo); case "preview" -> images.preview(photo,source); default -> source; };
         if (!Files.isRegularFile(file)) throw new IOException("缩略图缺失，请重新扫描");
         String type=kind.equals("original")?Files.probeContentType(source):"image/png";
@@ -51,6 +55,8 @@ public class ApiController {
 
 @RestControllerAdvice
 class ApiErrors {
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class) ResponseEntity<?> oversized(Exception e){return ResponseEntity.status(413).body(Map.of("message","备份文件超过 256 MiB 上传限制"));}
+    @ExceptionHandler(LibraryMaintenance.Busy.class) ResponseEntity<?> busy(Exception e) { return ResponseEntity.status(409).body(Map.of("message",e.getMessage())); }
     @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class, DataIntegrityViolationException.class})
     ResponseEntity<?> bad(Exception e) {
         String message=e instanceof DataIntegrityViolationException?"名称或目录重复，或关联数据无效":e instanceof MethodArgumentNotValidException?"请检查必填字段、文字长度和坐标范围":e.getMessage();

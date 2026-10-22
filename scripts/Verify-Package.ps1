@@ -19,8 +19,9 @@ function Connect-Check {
     $script:headers = @{}; $script:headers[$token.headerName] = $token.token
 }
 function Request-Check([string]$path, $body=$null, [string]$method='POST') {
-    if ($null -eq $body) { return Invoke-RestMethod "$base/api$path" -WebSession $script:apiSession -TimeoutSec 30 }
-    return Invoke-RestMethod "$base/api$path" -Method $method -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes(($body | ConvertTo-Json -Depth 8 -Compress))) -WebSession $script:apiSession -Headers $script:headers -TimeoutSec 30
+    if ($null -eq $body) { $reply = Invoke-WebRequest -UseBasicParsing "$base/api$path" -WebSession $script:apiSession -TimeoutSec 30 }
+    else { $reply = Invoke-WebRequest -UseBasicParsing "$base/api$path" -Method $method -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes(($body | ConvertTo-Json -Depth 8 -Compress))) -WebSession $script:apiSession -Headers $script:headers -TimeoutSec 30 }
+    return ([Text.Encoding]::UTF8.GetString($reply.RawContentStream.ToArray()) | ConvertFrom-Json)
 }
 function Scan-Check {
     $null = Request-Check '/scans' @{}

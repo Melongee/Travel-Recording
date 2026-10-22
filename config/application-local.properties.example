@@ -1,0 +1,4 @@
+# Copy to application-local.properties. This local file is ignored by Git and never included in backups.
+# Choose SERVER (服务端) application type with search / WMTS permissions at https://console.tianditu.gov.cn/
+app.geography.tianditu-key=
+app.geography.offline=false

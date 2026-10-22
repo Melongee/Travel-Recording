@@ -7,6 +7,7 @@ export interface Photo {
 export interface Place {
   id: string; name: string; province: string; provinceCode: string; lat: number; lng: number;
   description: string; photoCount: number; coverSrc: string | null;
+  coordinateSystem: string; coordinateSource: string;
 }
 export interface Category { id: string; placeId: string; name: string; photoCount: number }
 export interface Root { id: string; path: string; enabled: boolean; status: string; lastScanAt: string | null }

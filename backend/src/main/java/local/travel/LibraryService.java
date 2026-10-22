@@ -30,6 +30,7 @@ public class LibraryService {
         Path file=Path.of(p.path);
         Root root=roots.selectById(p.rootId);
         if (root==null) throw new IOException("照片目录未登记");
+        if ("needs_confirmation".equals(root.status)) throw new IOException("请先在设置中确认备份里的照片目录");
         Path base=Path.of(root.path);
         if (!file.startsWith(base)) throw new IOException("文件超出已登记目录");
         for (Path part=file; part!=null; part=part.getParent()) if (ScanService.isLink(part)) throw new IOException("原路径已变为链接，禁止访问");
@@ -40,7 +41,8 @@ public class LibraryService {
     PhotoView view(Photo p,List<String> ids) {
         boolean available="available".equals(p.availability);
         if (available) { try { source(p); } catch (IOException e) { available=false; } }
-        String status=available?p.availability:("available".equals(p.availability)?"missing":p.availability);
+        var root=roots.selectById(p.rootId);
+        String status=root!=null&&"needs_confirmation".equals(root.status)?"unverified":available?p.availability:("available".equals(p.availability)?"missing":p.availability);
         String base="/api/photos/"+p.id;
         return new PhotoView(p.id,p.fileName,p.path,base+"/thumbnail?v="+p.version,base+"/preview?v="+p.version,
             p.width,p.height,p.takenAt,p.sortAt,p.placeId,ids,p.rootId,available,status,p.error,p.version);
@@ -90,7 +92,9 @@ public class LibraryService {
             "places",allPlaces(),"categories",allCategories(),"roots",roots.selectList(new QueryWrapper<Root>().orderByAsc("path")),"dataDir",paths.data.toString());
     }
     record PlaceInput(@NotBlank @Size(max=60) String name,@NotBlank String province,@NotBlank String provinceCode,
-                      @NotNull @DecimalMin("-90") @DecimalMax("90") Double lat,@NotNull @DecimalMin("-180") @DecimalMax("180") Double lng,@Size(max=500) String description) {}
+                      @NotNull @DecimalMin("-90") @DecimalMax("90") Double lat,@NotNull @DecimalMin("-180") @DecimalMax("180") Double lng,@Size(max=500) String description,GeographyService.Source source) {
+        PlaceInput(String name,String province,String provinceCode,Double lat,Double lng,String description){this(name,province,provinceCode,lat,lng,description,null);}
+    }
     private static final Map<String,String> PROVINCES=Map.ofEntries(
         Map.entry("110000","北京"),Map.entry("120000","天津"),Map.entry("130000","河北"),Map.entry("140000","山西"),Map.entry("150000","内蒙古"),
         Map.entry("210000","辽宁"),Map.entry("220000","吉林"),Map.entry("230000","黑龙江"),Map.entry("310000","上海"),Map.entry("320000","江苏"),
@@ -103,9 +107,16 @@ public class LibraryService {
         if (!Objects.equals(PROVINCES.get(input.provinceCode),input.province) || !Double.isFinite(input.lat) || !Double.isFinite(input.lng)) throw new IllegalArgumentException("省份或坐标无效");
         Place p=id==null?new Place():places.selectById(id);
         if (p==null) throw new NoSuchElementException("地点不存在");
+        String source="manual";
+        if(input.source!=null) {
+            var s=input.source;
+            if(!"tianditu".equals(s.provider())||!"CGCS2000".equals(s.coordinateSystem())||!"geographic-approximation".equals(s.adaptation())
+                ||!Double.isFinite(s.lat())||!Double.isFinite(s.lng())||s.lat()!=input.lat||s.lng()!=input.lng||(s.poiId()!=null&&s.poiId().length()>120)) throw new IllegalArgumentException("搜索坐标来源无效");
+            source=tools.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(s);
+        } else if(id!=null&&Objects.equals(p.lat,input.lat)&&Objects.equals(p.lng,input.lng))source=p.coordinateSource;
         boolean fresh=id==null; p.id=fresh?UUID.randomUUID().toString():id;
         p.name=input.name.trim(); p.province=input.province; p.provinceCode=input.provinceCode; p.lat=input.lat; p.lng=input.lng;
-        p.description=input.description==null?"":input.description.trim(); p.coordinateSystem="WGS84"; p.coordinateSource="manual";
+        p.description=input.description==null?"":input.description.trim(); p.coordinateSystem="WGS84"; p.coordinateSource=source;
         if (fresh) places.insert(p); else places.updateById(p); return p;
     }
     record CategoryInput(@NotBlank String placeId,@NotBlank @Size(max=24) String name) {}

@@ -5,6 +5,8 @@ import { ChevronRight, Home, Layers3, MapPin, Minus, Plus, RotateCcw } from 'luc
 import type { Photo, Place } from './model';
 import 'leaflet/dist/leaflet.css';
 import './map.css';
+import {api} from './api';
+import type {GeographyState} from './components/GeographyPanel';
 
 interface TravelMapProps {
   places: Place[];
@@ -74,6 +76,11 @@ export default function TravelMap(props: TravelMapProps) {
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [retryKey, setRetryKey] = useState(0);
   const [pickOverview, setPickOverview] = useState(false);
+  const [geography,setGeography]=useState<GeographyState|null>(null);
+  const [online,setOnline]=useState(false),[onlineError,setOnlineError]=useState('');
+  const onlineRef=useRef(false);onlineRef.current=online;
+
+  useEffect(()=>{let active=true;api<GeographyState>('/geography/status').then(value=>{if(active)setGeography(value);}).catch(()=>{if(active)setOnlineError('地图配置读取失败，基础地图仍可使用');});return()=>{active=false;};},[]);
 
   useEffect(() => setPickOverview(false), [province]);
 
@@ -83,7 +90,7 @@ export default function TravelMap(props: TravelMapProps) {
       zoomControl: false,
       attributionControl: false,
       minZoom: 2,
-      maxZoom: 10,
+      maxZoom: 18,
       zoomSnap: 0.25,
       zoomDelta: 0.5,
       scrollWheelZoom: false,
@@ -112,6 +119,15 @@ export default function TravelMap(props: TravelMapProps) {
       pickedRef.current = null;
     };
   }, []);
+
+  useEffect(()=>{
+    const map=mapRef.current;if(!map||!online)return;
+    const layers=['vec','cva'].map(layer=>L.tileLayer(`/api/geography/tiles/${layer}/{z}/{x}/{y}`,{minZoom:1,maxZoom:18,noWrap:true,keepBuffer:1,updateWhenIdle:true}));
+    let failed=false;
+    const fallback=()=>{if(!failed){failed=true;setOnline(false);setOnlineError('在线地图暂不可用，已切回基础地图；地点和照片仍可使用');}};
+    layers.forEach(layer=>{layer.on('tileerror',fallback);layer.addTo(map);});
+    return()=>layers.forEach(layer=>{layer.off('tileerror',fallback);map.removeLayer(layer);});
+  },[online]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -143,7 +159,7 @@ export default function TravelMap(props: TravelMapProps) {
         const name = featureName(feature as ProvinceFeature);
         const active = provinceName(latestRef.current.province) === name;
         const visited = latestRef.current.places.some((place) => provinceName(place.province) === name);
-        return { color: active ? '#7e9d8a' : '#fafbf8', weight: active ? 1.5 : 1.1, fillColor: active ? '#adc6af' : visited ? '#cedbc9' : '#e1e5d9', fillOpacity: 1 };
+        return { color: active ? '#7e9d8a' : '#fafbf8', weight: active ? 1.5 : 1.1, fillColor: active ? '#adc6af' : visited ? '#cedbc9' : '#e1e5d9', fillOpacity: onlineRef.current?.12:1 };
       },
       onEachFeature: (feature, featureLayer) => {
         const name = featureName(feature);
@@ -194,7 +210,7 @@ export default function TravelMap(props: TravelMapProps) {
 
   useEffect(() => {
     provincesRef.current?.resetStyle();
-  }, [data, province, places]);
+  }, [data, province, places,online]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -325,11 +341,13 @@ export default function TravelMap(props: TravelMapProps) {
       L.marker([selectedPoint.lat, selectedPoint.lng], {
         icon: L.divIcon({ className: 'picked-point-marker', iconSize: [24, 24], iconAnchor: [12, 12], html: '<span></span>' }),
         title: '已选择的位置',
+        zIndexOffset: 1000,
         keyboard: false,
         interactive: false,
       }).addTo(group);
+      if(pickMode)mapRef.current?.panTo([selectedPoint.lat,selectedPoint.lng],{animate:false});
     }
-  }, [selectedPoint, data]);
+  }, [selectedPoint?.lat,selectedPoint?.lng,data,pickMode]);
 
   const resetNationalView = () => {
     mapRef.current?.fitBounds(nationalBounds, { padding: compact ? [24, 18] : [28, 22], animate: false });
@@ -354,8 +372,10 @@ export default function TravelMap(props: TravelMapProps) {
         <button type="button" aria-label="缩小地图" onClick={() => mapRef.current?.zoomOut()}><Minus size={17} /></button>
         <button type="button" aria-label="回到全国地图" onClick={resetNationalView}><RotateCcw size={14} /></button>
       </div>
+      <div className="map-online-control"><button type="button" disabled={!geography?.configured||geography.offline} onClick={()=>{setOnlineError('');setOnline(!online);}}>{online?'切回基础地图':'在线地图'}</button>{!geography?.configured&&<span>未配置 Key · 基础地图可用</span>}</div>
+      {onlineError&&<div className="map-online-error" role="status">{onlineError}</div>}
       {!compact && <div className="map-legend"><span className="map-legend-visited" />留下回忆的省份<span className="map-legend-rest" />待出发{!province && !pickMode && places.length > 0 && <em>数字为旅行地点数</em>}</div>}
-      <div className="map-source-note">Natural Earth · 基础省界演示</div>
+      <div className="map-source-note">{online?<><a href="https://www.tianditu.gov.cn/" target="_blank" rel="noreferrer">© 天地图</a> · 在线底图 / Natural Earth 交互轮廓</>:'Natural Earth · 基础省界演示'}</div>
       {pickMode && loadState === 'ready' && <div className="map-pick-tip"><MapPin size={13} />点击地图，选择地点位置</div>}
       {loadState !== 'ready' && <div className="map-status" role={loadState === 'error' ? 'alert' : 'status'}>
         <MapPin size={24} />

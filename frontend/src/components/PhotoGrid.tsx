@@ -5,7 +5,7 @@ import {dateLabel} from '../model';
 export function PhotoImage({photo,preview=false}: {photo:Photo;preview?:boolean}) {
   const [failed,setFailed]=useState(false);
   useEffect(()=>setFailed(false),[photo.id,photo.version,photo.available]);
-  if(!photo.available||failed)return <div className="image-unavailable"><Image size={27}/><span>{photo.availability==='corrupt'?'图片损坏':'照片暂不可用'}</span><small>整理记录已保留</small></div>;
+  if(!photo.available||failed)return <div className="image-unavailable"><Image size={27}/><span>{photo.availability==='unverified'?'目录待确认':photo.availability==='corrupt'?'图片损坏':'照片暂不可用'}</span><small>整理记录已保留</small></div>;
   return <img src={preview?photo.previewSrc:photo.src} alt={photo.fileName} loading={preview?'eager':'lazy'} decoding="async" onError={()=>setFailed(true)}/>;
 }
 export default function PhotoGrid({photos,places,selected,selecting,onSelect,onOpen,dense=false}: {photos:Photo[];places:Place[];selected:Set<string>;selecting:boolean;onSelect:(id:string)=>void;onOpen:(id:string)=>void;dense?:boolean}) {

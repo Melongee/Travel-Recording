@@ -19,11 +19,11 @@ import org.springframework.test.context.DynamicPropertySource;
 class LibraryIntegrationTest {
     static final Path DATABASE=temporary();
     @DynamicPropertySource static void properties(DynamicPropertyRegistry r) { r.add("app.data-dir",()->DATABASE.toString()); }
-    static Path temporary() { try { return Files.createTempDirectory("travel-db-"); } catch(IOException e) { throw new UncheckedIOException(e); } }
+    static Path temporary() { try { return ProjectTempDirFactory.create(); } catch(IOException e) { throw new UncheckedIOException(e); } }
     @Autowired LibraryService library;
     @Autowired ScanService scans;
     @Autowired ImageService images;
-    @TempDir Path fixture;
+    @TempDir(factory=ProjectTempDirFactory.class) Path fixture;
     void scan() {
         scans.start();
         assertTimeoutPreemptively(Duration.ofSeconds(25),()->{while(scans.current().state().equals("running"))Thread.sleep(25);});
@@ -44,7 +44,7 @@ class LibraryIntegrationTest {
         scans.addRoot(fixture.toString()); scans.addRoot(nested.toString()); scan();
         assertEquals(4,library.query(null,null,false,"","name",0,100).total());
         var page=library.query(null,null,false,"","name",0,100);
-        assertEquals(3,page.items().stream().filter(LibraryService.PhotoView::available).count());
+        assertEquals(3,page.items().stream().filter(LibraryService.PhotoView::available).count(),page.toString()+" scan="+scans.current());
         assertEquals(1,page.items().stream().filter(p->p.availability().equals("corrupt")).count());
         var photo=page.items().stream().filter(p->p.fileName().equals("横图.JPG")).findFirst().orElseThrow();
         var webpPhoto=page.items().stream().filter(p->p.fileName().endsWith("webp")).findFirst().orElseThrow();
