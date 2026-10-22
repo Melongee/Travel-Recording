@@ -1,0 +1,16 @@
+[
+  {
+    "file": "china-provinces.geojson",
+    "title": "中国省级区域交互示意图（34个区域）",
+    "source": "https://github.com/nvkelso/natural-earth-vector/tree/master/geojson",
+    "license": "Public domain — https://www.naturalearthdata.com/about/terms-of-use/",
+    "author": "Natural Earth contributors / Tom Patterson / Nathaniel Vaughn Kelso",
+    "changes": "提取31个大陆省级区域，加入台湾、香港、澳门整体轮廓；简化属性与统一中文名称，保持原始几何。",
+    "notice": "Natural Earth 使用事实管辖（de facto）边界。这不是中国标准地图，仅用于离线交互演示，不代表完整岛屿、海域界线及领土主张。正式发布必须另行核对标准地图与分发许可。",
+    "coordinateSystem": "WGS84 longitude/latitude",
+    "upstreamFiles": [
+      "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson",
+      "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson"
+    ]
+  }
+]

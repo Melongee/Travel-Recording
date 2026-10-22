@@ -1,0 +1,28 @@
+server:
+  address: 127.0.0.1
+  port: ${TRAVEL_PORT:8080}
+  error:
+    include-message: always
+app:
+  data-dir: ${TRAVEL_DATA_DIR:./data}
+spring:
+  application:
+    name: travel-recording
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      connection-init-sql: PRAGMA foreign_keys=ON
+      data-source-properties:
+        busy_timeout: 5000
+        journal_mode: WAL
+  flyway:
+    enabled: true
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+logging:
+  file:
+    name: ${app.data-dir}/logs/application.log
