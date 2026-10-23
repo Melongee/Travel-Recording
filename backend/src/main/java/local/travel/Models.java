@@ -8,6 +8,7 @@ public class Models {
         @TableId(type=IdType.INPUT) public String id;
         public String path, normalizedPath, status, lastScanAt;
         public Boolean enabled;
+        @TableField(exist=false) public Boolean fileOnly;
     }
     @TableName("photos")
     public static class Photo {

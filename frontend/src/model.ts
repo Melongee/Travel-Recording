@@ -10,7 +10,7 @@ export interface Place {
   coordinateSystem: string; coordinateSource: string;
 }
 export interface Category { id: string; placeId: string; name: string; photoCount: number }
-export interface Root { id: string; path: string; enabled: boolean; status: string; lastScanAt: string | null }
+export interface Root { id: string; path: string; enabled: boolean; status: string; lastScanAt: string | null; fileOnly?:boolean }
 export interface Overview { photoCount: number; unclassifiedCount: number; excludedCount: number; places: Place[]; categories: Category[]; roots: Root[]; dataDir: string }
 export interface PhotoPage { items: Photo[]; total: number; page: number; size: number }
 export interface Scan { state: string; discovered: number; added: number; updated: number; unchanged: number; failed: number; missing: number; errors: string[] }

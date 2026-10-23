@@ -50,7 +50,7 @@ public class RootRemovalService {
         List<Root> all=roots.selectList(null).stream().sorted(Comparator.comparing(r->r.id)).toList();
         Root target=all.stream().filter(r->r.id.equals(id)).findFirst().orElseThrow(()->new NoSuchElementException("目录不存在或已被移除"));
         Path base=Path.of(target.normalizedPath);
-        List<Root> remaining=all.stream().filter(r->!r.id.equals(id)&&Boolean.TRUE.equals(r.enabled)&&!"needs_confirmation".equals(r.status))
+        List<Root> remaining=all.stream().filter(r->!r.id.equals(id)&&(Boolean.TRUE.equals(r.enabled)||"single_file".equals(r.status))&&!"needs_confirmation".equals(r.status))
             .sorted(Comparator.<Root>comparingInt(r->Path.of(r.normalizedPath).getNameCount()).reversed().thenComparing(r->r.id)).toList();
         List<Photo> deleted=new ArrayList<>();List<Kept> kept=new ArrayList<>();
         MessageDigest digest;

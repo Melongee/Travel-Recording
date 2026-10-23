@@ -55,6 +55,20 @@ public class ScanService {
     public synchronized Root confirmRoot(String id) throws IOException {
         Root root=roots.selectById(id);
         if (root==null) throw new NoSuchElementException("目录不存在");
+        // A single-file source never authorizes scanning its parent directory.
+        if(jdbc.queryForObject("SELECT count(*) FROM photos WHERE root_id=? AND normalized_path=?",Integer.class,id,root.normalizedPath)>0) {
+            Path file=Path.of(root.path);
+            if(!Files.isRegularFile(file)||!Files.isReadable(file))throw new IOException("照片文件不存在或不可读");
+            for(Path part=file;part!=null;part=part.getParent())if(isLink(part))throw new IOException("不允许符号链接或目录联接");
+            if(!normalized(file.toRealPath()).equals(root.normalizedPath))throw new IOException("照片路径已变化");
+            var photo=photos.selectOne(new QueryWrapper<Photo>().eq("root_id",id).eq("normalized_path",root.normalizedPath));
+            var attrs=Files.readAttributes(file,BasicFileAttributes.class);String version=attrs.size()+"-"+attrs.lastModifiedTime().toMillis();
+            var info=images.index(file,photo.id,version);
+            var after=Files.readAttributes(file,BasicFileAttributes.class);
+            if(after.size()!=attrs.size()||!after.lastModifiedTime().equals(attrs.lastModifiedTime()))throw new IOException("照片在核对期间变化，请重试");
+            jdbc.update("UPDATE photos SET version=?,size=?,modified_at=?,width=?,height=?,orientation=?,availability='available',error=NULL WHERE id=?",version,attrs.size(),attrs.lastModifiedTime().toMillis(),info.width(),info.height(),info.orientation(),photo.id);
+            root.enabled=false;root.status="single_file";roots.updateById(root);return root;
+        }
         return addRoot(root.path);
     }
     public synchronized Status start() {
@@ -63,7 +77,7 @@ public class ScanService {
         worker.submit(this::run); return status;
     }
     synchronized <T> T whenIdle(Supplier<T> action) {
-        if(status.state.equals("running"))throw new LibraryMaintenance.Busy("扫描尚未结束，请等待完成后再移除目录");
+        if(status.state.equals("running"))throw new LibraryMaintenance.Busy("扫描尚未结束，请等待完成后再操作照片路径或目录");
         return action.get();
     }
     private void run() {

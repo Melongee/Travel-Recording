@@ -20,7 +20,11 @@ public class LibraryService {
     }
     record PhotoView(String id,String fileName,String path,String src,String previewSrc,int width,int height,String takenAt,String sortAt,
                      String placeId,List<String> categoryIds,String rootId,boolean available,String availability,String error,String version) {}
-    public List<Root> allRoots() { return roots.selectList(new QueryWrapper<Root>().orderByAsc("path")); }
+    public List<Root> allRoots() {
+        var result=roots.selectList(new QueryWrapper<Root>().orderByAsc("path"));
+        for(Root root:result)root.fileOnly=jdbc.queryForObject("SELECT count(*) FROM photos WHERE root_id=? AND normalized_path=?",Integer.class,root.id,root.normalizedPath)>0;
+        return result;
+    }
     public void deleteCategory(String id) { categories.deleteById(id); }
     public Path thumbnail(Photo p) { return paths.image(p.id,p.version,false); }
     Photo requirePhoto(String id) {
@@ -94,7 +98,7 @@ public class LibraryService {
         return Map.of("photoCount",jdbc.queryForObject("SELECT count(*) FROM photos WHERE excluded=0",Long.class),
             "unclassifiedCount",jdbc.queryForObject("SELECT count(*) FROM photos WHERE excluded=0 AND place_id IS NULL",Long.class),
             "excludedCount",jdbc.queryForObject("SELECT count(*) FROM photos WHERE excluded=1",Long.class),
-            "places",allPlaces(),"categories",allCategories(),"roots",roots.selectList(new QueryWrapper<Root>().orderByAsc("path")),"dataDir",paths.data.toString());
+            "places",allPlaces(),"categories",allCategories(),"roots",allRoots(),"dataDir",paths.data.toString());
     }
     record PlaceInput(@NotBlank @Size(max=60) String name,@NotBlank String province,@NotBlank String provinceCode,
                       @NotNull @DecimalMin("-90") @DecimalMax("90") Double lat,@NotNull @DecimalMin("-180") @DecimalMax("180") Double lng,@Size(max=500) String description,GeographyService.Source source) {

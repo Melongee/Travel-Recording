@@ -19,6 +19,9 @@ public class ImageService {
 
     // Bound concurrent decodes; disk traversal and decoding never hold a database transaction.
     synchronized Details index(Path file, String id, String version) throws IOException {
+        return inspect(file,paths.image(id,version,false));
+    }
+    synchronized Details inspect(Path file,Path thumbnail) throws IOException {
         int orientation = 1; String takenAt = null;
         try {
             var metadata = ImageMetadataReader.readMetadata(file.toFile());
@@ -35,8 +38,13 @@ public class ImageService {
         } catch (Exception ignored) { /* Metadata absence must not reject a decodable image. */ }
         BufferedImage original = decode(file);
         BufferedImage oriented = orient(original, orientation);
-        save(oriented, paths.image(id, version, false), 480);
+        save(oriented, thumbnail, 480);
         return new Details(oriented.getWidth(), oriented.getHeight(), orientation, takenAt);
+    }
+    synchronized boolean sameThumbnail(Path reference,Path candidate) throws IOException {
+        BufferedImage a=decode(reference),b=decode(candidate);
+        if(a.getWidth()!=b.getWidth()||a.getHeight()!=b.getHeight())return false;
+        return Arrays.equals(a.getRGB(0,0,a.getWidth(),a.getHeight(),null,0,a.getWidth()),b.getRGB(0,0,b.getWidth(),b.getHeight(),null,0,b.getWidth()));
     }
 
     synchronized Path preview(Models.Photo photo, Path file) throws IOException {

@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 public static class TravelFolderDialog {
     [STAThread] public static void Main() {
         try {
-            string selected=Choose();
+            string selected=Choose(Environment.GetEnvironmentVariable("TRAVEL_RECORDING_PICK_FILE")=="1");
             Console.WriteLine(selected==null ? "CANCELLED" : "SELECTED:"+Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(selected)));
         } catch { Environment.Exit(3); }
     }
@@ -42,16 +42,16 @@ public static class TravelFolderDialog {
         void GetParent(out IShellItem parent);
         void GetDisplayName(uint type, out IntPtr name);
     }
-    public static string Choose() {
+    public static string Choose(bool file) {
         IFileDialog dialog=(IFileDialog)new FileOpenDialog();
         IShellItem item=null;
         IntPtr name=IntPtr.Zero;
         try {
             uint options; dialog.GetOptions(out options);
             // PICKFOLDERS | FORCEFILESYSTEM | PATHMUSTEXIST | DONTADDTORECENT
-            dialog.SetOptions(options | 0x20u | 0x40u | 0x800u | 0x02000000u);
-            dialog.SetTitle("选择照片目录 — 旅迹");
-            dialog.SetOkButtonLabel("选择此文件夹");
+            dialog.SetOptions(options | (file ? 0x1000u : 0x20u) | 0x40u | 0x800u | 0x02000000u);
+            dialog.SetTitle(file ? "选择照片文件 — 旅迹" : "选择照片目录 — 旅迹");
+            dialog.SetOkButtonLabel(file ? "选择此照片" : "选择此文件夹");
             // The browser is a separate process; use an independent desktop dialog.
             int result=dialog.Show(IntPtr.Zero);
             if(result==unchecked((int)0x800704C7))return null;

@@ -18,9 +18,13 @@ public class FolderPickerService {
     FolderPickerService(@Value("${app.desktop.enabled:true}") boolean enabled,Picker picker){this.enabled=enabled;this.picker=picker;}
     record Result(String path,boolean cancelled) {}
     Result choose() throws IOException {
+        return choose(picker);
+    }
+    Result chooseFile() throws IOException {return choose(()->WindowsFolderPicker.launch(true));}
+    private Result choose(Picker selection) throws IOException {
         if(!enabled)throw new IOException("当前服务已关闭桌面操作，无法打开文件夹选择窗口");
         if(!choosing.compareAndSet(false,true))throw new IOException("文件夹选择窗口已打开，请先完成或取消选择");
-        try {String path=picker.choose();return new Result(path,path==null);}
+        try {String path=selection.choose();return new Result(path,path==null);}
         finally {choosing.set(false);}
     }
 }
@@ -28,17 +32,24 @@ public class FolderPickerService {
 @Component
 class WindowsFolderPicker implements FolderPickerService.Picker {
     static ProcessBuilder command(Path windows) throws IOException {
+        return command(windows,false);
+    }
+    static ProcessBuilder command(Path windows,boolean file) throws IOException {
         String script;
         try(var input=WindowsFolderPicker.class.getResourceAsStream("/desktop/choose-folder.ps1")) {
             if(input==null)throw new IOException("文件夹选择组件缺失，请重新构建应用");
             script=new String(input.readAllBytes(),StandardCharsets.UTF_8);
         }
-        return new ProcessBuilder(windows.resolve("System32/WindowsPowerShell/v1.0/powershell.exe").toString(),
+        ProcessBuilder result=new ProcessBuilder(windows.resolve("System32/WindowsPowerShell/v1.0/powershell.exe").toString(),
             "-NoProfile","-NonInteractive","-STA","-WindowStyle","Hidden","-EncodedCommand",
             Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_16LE)))
             .redirectError(ProcessBuilder.Redirect.DISCARD);
+        result.environment().put("TRAVEL_RECORDING_PICK_FILE",file?"1":"0");return result;
     }
     @Override public String choose() throws IOException {
+        return launch(false);
+    }
+    static String launch(boolean file) throws IOException {
         if(!System.getProperty("os.name","").toLowerCase(Locale.ROOT).startsWith("windows"))
             throw new IOException("文件夹选择目前支持本机 Windows 桌面");
         String root=System.getenv("SystemRoot");
@@ -46,7 +57,7 @@ class WindowsFolderPicker implements FolderPickerService.Picker {
         Path windows=Path.of(root);
         if(!Files.isRegularFile(windows.resolve("System32/WindowsPowerShell/v1.0/powershell.exe")))
             throw new IOException("本机文件夹选择组件不可用");
-        Process process=command(windows).start();
+        Process process=command(windows,file).start();
         try {
             if(!process.waitFor(5,TimeUnit.MINUTES))throw new IOException("选择文件夹已超时，请重试");
             String result=new String(process.getInputStream().readNBytes(32768),StandardCharsets.US_ASCII).trim();
