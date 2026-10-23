@@ -29,10 +29,11 @@ public class ApiController {
     @GetMapping("/scans/current") Object scanState() { return scans.current(); }
     @GetMapping("/photos") Object photos(@RequestParam(required=false) String placeId,@RequestParam(required=false) String categoryId,
         @RequestParam(defaultValue="false") boolean unclassified,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="date-desc") String sort,
-        @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="100") int size) { return library.query(placeId,categoryId,unclassified,q,sort,page,size); }
+        @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="100") int size,@RequestParam(defaultValue="false") boolean excluded) { return library.query(placeId,categoryId,unclassified,q,sort,page,size,excluded); }
     @GetMapping("/photos/{id}") Object photo(@PathVariable String id) { return library.detail(id); }
     @PostMapping("/photos/{id}/reveal") Object reveal(@PathVariable String id) throws IOException { return files.reveal(id); }
     @PostMapping("/photos/classify") Object classify(@Valid @RequestBody LibraryService.Classification input) { library.classify(input); return Map.of("saved",true); }
+    @PostMapping("/photos/exclusion") Object exclusion(@Valid @RequestBody LibraryService.Exclusion input) { library.setExcluded(input); return Map.of("saved",true); }
     @GetMapping("/photos/{id}/{kind:thumbnail|preview|original}") ResponseEntity<Resource> image(@PathVariable String id,@PathVariable String kind) throws IOException {
         var photo=library.requirePhoto(id);
         Path source=library.source(photo); // Even a cached response must respect current file availability and root scope.

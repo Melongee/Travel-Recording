@@ -53,8 +53,11 @@ public class LibraryService {
     }
     record PhotoPage(List<PhotoView> items,long total,int page,int size) {}
     PhotoPage query(String placeId,String categoryId,boolean unclassified,String q,String sort,int page,int size) {
+        return query(placeId,categoryId,unclassified,q,sort,page,size,false);
+    }
+    PhotoPage query(String placeId,String categoryId,boolean unclassified,String q,String sort,int page,int size,boolean excluded) {
         page=Math.max(0,page); size=Math.clamp(size,1,200);
-        StringBuilder where=new StringBuilder(" WHERE 1=1"); List<Object> params=new ArrayList<>();
+        StringBuilder where=new StringBuilder(" WHERE p.excluded=?"); List<Object> params=new ArrayList<>();params.add(excluded?1:0);
         if (unclassified) where.append(" AND p.place_id IS NULL");
         if (placeId!=null && !placeId.isBlank()) { where.append(" AND p.place_id=?"); params.add(placeId); }
         if (categoryId!=null && !categoryId.isBlank()) { where.append(" AND EXISTS(SELECT 1 FROM photo_categories pc WHERE pc.photo_id=p.id AND pc.category_id=?)"); params.add(categoryId); }
@@ -71,24 +74,26 @@ public class LibraryService {
         for (String id:ids) items.add(detail(id));
         return new PhotoPage(items,total,page,size);
     }
-    record PlaceView(String id,String name,String province,String provinceCode,double lat,double lng,String description,String coordinateSystem,String coordinateSource,long photoCount,String coverSrc) {}
+    record PlaceView(String id,String name,String province,String provinceCode,double lat,double lng,String description,String coordinateSystem,String coordinateSource,long photoCount,long excludedPhotoCount,String coverSrc) {}
     List<PlaceView> allPlaces() {
         return places.selectList(new QueryWrapper<Place>().orderByAsc("province_code","name","id")).stream().map(p -> {
-            long count=jdbc.queryForObject("SELECT count(*) FROM photos WHERE place_id=?",Long.class,p.id);
+            long count=jdbc.queryForObject("SELECT count(*) FROM photos WHERE excluded=0 AND place_id=?",Long.class,p.id);
+            long excludedCount=jdbc.queryForObject("SELECT count(*) FROM photos WHERE excluded=1 AND place_id=?",Long.class,p.id);
             String cover=null;
-            var candidates=photos.selectList(new QueryWrapper<Photo>().eq("place_id",p.id).eq("availability","available").orderByDesc("sort_at").last("LIMIT 20"));
+            var candidates=photos.selectList(new QueryWrapper<Photo>().eq("excluded",false).eq("place_id",p.id).eq("availability","available").orderByDesc("sort_at").last("LIMIT 20"));
             for (Photo photo:candidates) { try { source(photo); cover="/api/photos/"+photo.id+"/thumbnail?v="+photo.version; break; } catch (IOException ignored) {} }
-            return new PlaceView(p.id,p.name,p.province,p.provinceCode,p.lat,p.lng,p.description,p.coordinateSystem,p.coordinateSource,count,cover);
+            return new PlaceView(p.id,p.name,p.province,p.provinceCode,p.lat,p.lng,p.description,p.coordinateSystem,p.coordinateSource,count,excludedCount,cover);
         }).toList();
     }
     record CategoryView(String id,String placeId,String name,long photoCount) {}
     List<CategoryView> allCategories() {
         return categories.selectList(new QueryWrapper<Category>().orderByAsc("name","id")).stream().map(c -> new CategoryView(c.id,c.placeId,c.name,
-            jdbc.queryForObject("SELECT count(*) FROM photo_categories WHERE category_id=?",Long.class,c.id))).toList();
+            jdbc.queryForObject("SELECT count(*) FROM photo_categories pc JOIN photos p ON p.id=pc.photo_id WHERE p.excluded=0 AND pc.category_id=?",Long.class,c.id))).toList();
     }
     Map<String,Object> overview() {
-        return Map.of("photoCount",jdbc.queryForObject("SELECT count(*) FROM photos",Long.class),
-            "unclassifiedCount",jdbc.queryForObject("SELECT count(*) FROM photos WHERE place_id IS NULL",Long.class),
+        return Map.of("photoCount",jdbc.queryForObject("SELECT count(*) FROM photos WHERE excluded=0",Long.class),
+            "unclassifiedCount",jdbc.queryForObject("SELECT count(*) FROM photos WHERE excluded=0 AND place_id IS NULL",Long.class),
+            "excludedCount",jdbc.queryForObject("SELECT count(*) FROM photos WHERE excluded=1",Long.class),
             "places",allPlaces(),"categories",allCategories(),"roots",roots.selectList(new QueryWrapper<Root>().orderByAsc("path")),"dataDir",paths.data.toString());
     }
     record PlaceInput(@NotBlank @Size(max=60) String name,@NotBlank String province,@NotBlank String provinceCode,
@@ -133,7 +138,7 @@ public class LibraryService {
     public void classify(Classification input) {
         Set<String> photoIds=new LinkedHashSet<>(input.photoIds), categoryIds=new LinkedHashSet<>(input.categoryIds);
         if (input.placeId!=null && places.selectById(input.placeId)==null) throw new IllegalArgumentException("地点不存在");
-        for (String id:photoIds) requirePhoto(id);
+        for (String id:photoIds) if(Boolean.TRUE.equals(requirePhoto(id).excluded)) throw new IllegalArgumentException("请先恢复已排除的照片，再调整归类");
         for (String id:categoryIds) {
             Category c=categories.selectById(id);
             if (c==null || input.placeId==null || !input.placeId.equals(c.placeId)) throw new IllegalArgumentException("类别必须属于目标地点");
@@ -143,6 +148,13 @@ public class LibraryService {
             jdbc.update("UPDATE photos SET place_id=? WHERE id=?",input.placeId,id);
             for (String category:categoryIds) jdbc.update("INSERT INTO photo_categories(photo_id,category_id) VALUES(?,?)",id,category);
         }
+    }
+    public record Exclusion(@NotEmpty @Size(max=1000) List<@NotBlank String> photoIds,@NotNull Boolean excluded) {}
+    @Transactional
+    public void setExcluded(Exclusion input) {
+        Set<String> ids=new LinkedHashSet<>(input.photoIds);
+        for(String id:ids) requirePhoto(id);
+        for(String id:ids) jdbc.update("UPDATE photos SET excluded=? WHERE id=?",input.excluded?1:0,id);
     }
     @Transactional
     public void deletePlace(String id) {

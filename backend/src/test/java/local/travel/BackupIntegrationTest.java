@@ -31,6 +31,7 @@ class BackupIntegrationTest {
     @TempDir(factory=ProjectTempDirFactory.class) Path fixtures;
     BackupService.Inspection inspect(Path zip) throws Exception {try(var input=Files.newInputStream(zip)){return backups.inspect(input);}}
     void clearTestLibrary(){for(String table:List.of("photo_categories","photos","categories","places","photo_roots"))jdbc.update("DELETE FROM "+table);}
+    @org.junit.jupiter.api.BeforeEach void resetIndependentLibrary(){clearTestLibrary();}
     @Test void walSnapshotRestoresClassificationAndRequiresExplicitRootAccess() throws Exception {
         var image=new BufferedImage(30,20,BufferedImage.TYPE_INT_RGB);
         Path file=fixtures.resolve("独立 样本.png");ImageIO.write(image,"png",file.toFile());
@@ -75,7 +76,7 @@ class BackupIntegrationTest {
         try(ZipFile in=new ZipFile(archive.toFile())){Files.copy(in.getInputStream(in.getEntry("library.db")),unknownSchema);}
         try(Connection c=DriverManager.getConnection("jdbc:sqlite:"+unknownSchema);Statement s=c.createStatement()){s.execute("CREATE VIEW hostile AS SELECT 1");}
         var old=inspection.manifest();
-        var changed=new BackupService.Manifest(old.format(),1,old.appVersion(),1,old.exportedAt(),BackupService.sha256(unknownSchema),old.counts());
+        var changed=new BackupService.Manifest(old.format(),1,old.appVersion(),old.schemaVersion(),old.exportedAt(),BackupService.sha256(unknownSchema),old.counts());
         Path hostile=fixtures.resolve("unknown-schema.zip");
         try(ZipOutputStream out=new ZipOutputStream(Files.newOutputStream(hostile))){
             out.putNextEntry(new ZipEntry("manifest.json"));out.write(JsonMapper.builder().build().writeValueAsBytes(changed));out.closeEntry();
@@ -83,6 +84,34 @@ class BackupIntegrationTest {
         }
         assertThrows(IllegalArgumentException.class,()->inspect(hostile));
         assertEquals(2,library.detail(photo.id()).categoryIds().size());
+    }
+    @Test void validatedV1ArchiveUpgradesBeforeEmptyLibraryRestore() throws Exception {
+        Path file=fixtures.resolve("旧版照片.png");ImageIO.write(new BufferedImage(30,20,BufferedImage.TYPE_INT_RGB),"png",file.toFile());
+        String root=UUID.randomUUID().toString(),photo=UUID.randomUUID().toString(),place=UUID.randomUUID().toString(),category=UUID.randomUUID().toString();
+        Path oldDatabase=fixtures.resolve("old-v1.db");DatabaseMigrations.forFile(oldDatabase,1).migrate();
+        BackupService.Counts counts;
+        try(Connection c=DriverManager.getConnection("jdbc:sqlite:"+oldDatabase)) {
+            try(PreparedStatement s=c.prepareStatement("INSERT INTO photo_roots(id,path,normalized_path) VALUES(?,?,?)")){s.setString(1,root);s.setString(2,fixtures.toString());s.setString(3,ScanService.normalized(fixtures));s.executeUpdate();}
+            try(PreparedStatement s=c.prepareStatement("INSERT INTO places(id,name,province,province_code,lat,lng) VALUES(?,'旧地点','青海','630000',36.9,100.18)")){s.setString(1,place);s.executeUpdate();}
+            try(PreparedStatement s=c.prepareStatement("INSERT INTO categories VALUES(?,?,'旧类别')")){s.setString(1,category);s.setString(2,place);s.executeUpdate();}
+            try(PreparedStatement s=c.prepareStatement("INSERT INTO photos(id,path,normalized_path,root_id,file_name,size,modified_at,sort_at,place_id,version) VALUES(?,?,?,?,?,1,1,'2026',?,'1-1')")) {
+                s.setString(1,photo);s.setString(2,file.toString());s.setString(3,ScanService.normalized(file));s.setString(4,root);s.setString(5,file.getFileName().toString());s.setString(6,place);s.executeUpdate();
+            }
+            try(PreparedStatement s=c.prepareStatement("INSERT INTO photo_categories VALUES(?,?)")){s.setString(1,photo);s.setString(2,category);s.executeUpdate();}
+            counts=BackupService.counts(c);
+        }
+        var manifest=new BackupService.Manifest(BackupService.FORMAT,1,"0.1.0",1,java.time.Instant.now().toString(),BackupService.sha256(oldDatabase),counts);
+        Path archive=fixtures.resolve("old-v1.zip");
+        try(ZipOutputStream out=new ZipOutputStream(Files.newOutputStream(archive))) {
+            out.putNextEntry(new ZipEntry("manifest.json"));out.write(JsonMapper.builder().build().writeValueAsBytes(manifest));out.closeEntry();
+            out.putNextEntry(new ZipEntry("library.db"));Files.copy(oldDatabase,out);out.closeEntry();
+        }
+        var inspection=inspect(archive);backups.restore(inspection.token(),true);
+        assertEquals(place,library.detail(photo).placeId());assertEquals(List.of(category),library.detail(photo).categoryIds());
+        assertEquals(0L,library.overview().get("excludedCount"));assertEquals("unverified",library.detail(photo).availability());
+        assertEquals("2",jdbc.queryForObject("SELECT max(version) FROM flyway_schema_history WHERE success=1",String.class));
+        assertThrows(IOException.class,()->library.source(library.requirePhoto(photo)));
+        assertEquals(BackupService.sha256(oldDatabase),manifest.databaseSha256());
     }
     @Test void restoreCannotRunWhileAnotherThreadHoldsLibraryAccess() throws Exception {
         CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);

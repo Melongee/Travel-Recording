@@ -6,12 +6,12 @@ export interface Photo {
 }
 export interface Place {
   id: string; name: string; province: string; provinceCode: string; lat: number; lng: number;
-  description: string; photoCount: number; coverSrc: string | null;
+  description: string; photoCount: number; excludedPhotoCount: number; coverSrc: string | null;
   coordinateSystem: string; coordinateSource: string;
 }
 export interface Category { id: string; placeId: string; name: string; photoCount: number }
 export interface Root { id: string; path: string; enabled: boolean; status: string; lastScanAt: string | null }
-export interface Overview { photoCount: number; unclassifiedCount: number; places: Place[]; categories: Category[]; roots: Root[]; dataDir: string }
+export interface Overview { photoCount: number; unclassifiedCount: number; excludedCount: number; places: Place[]; categories: Category[]; roots: Root[]; dataDir: string }
 export interface PhotoPage { items: Photo[]; total: number; page: number; size: number }
 export interface Scan { state: string; discovered: number; added: number; updated: number; unchanged: number; failed: number; missing: number; errors: string[] }
 export const PROVINCES = [

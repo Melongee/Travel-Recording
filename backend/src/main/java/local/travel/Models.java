@@ -15,6 +15,7 @@ public class Models {
         public String path, normalizedPath, rootId, fileName, takenAt, sortAt, placeId, availability, error, version;
         public Long size, modifiedAt;
         public Integer width, height, orientation;
+        public Boolean excluded;
     }
     @TableName("places")
     public static class Place {

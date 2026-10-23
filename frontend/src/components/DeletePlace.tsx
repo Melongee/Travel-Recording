@@ -11,7 +11,7 @@ export default function DeletePlace({place,overview,onClose,onDeleted}:{place:Pl
     catch(e){setError((e as Error).message);}finally{setBusy(false);}
   };
   return <Modal title="删除旅行地点" description={`确认删除“${place.name}”？`} onClose={()=>{if(!busy)onClose();}}>
-    <div className="inline-notice">此地点的 {place.photoCount} 张照片将回到未分类，{count} 个类别及其关联将一并移除。原始照片和照片索引会保留。</div>
+    <div className="inline-notice">此地点的 {place.photoCount} 张照片将回到未分类，{count} 个类别及其关联将一并移除。{place.excludedPhotoCount>0&&`另外 ${place.excludedPhotoCount} 张已排除照片也会解除归类，并保持排除。`}原始照片和照片索引会保留。</div>
     <p className="muted-note">删除后如需恢复地点和类别，可使用事先导出的管理数据备份。</p>
     {error&&<p className="form-error" role="alert">{error}</p>}
     <div className="modal-footer"><button className="button secondary" disabled={busy} onClick={onClose}>取消</button><button className="button danger-action" disabled={busy} onClick={()=>void remove()}>{busy?'正在删除…':'确认删除地点'}</button></div>

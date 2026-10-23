@@ -42,7 +42,7 @@ public class BackupService {
                 Path snapshot=work.resolve("library.db"); database.snapshot(snapshot);
                 Counts counts;
                 try (Connection c=readOnly(snapshot)) { counts=counts(c); }
-                Manifest manifest=new Manifest(FORMAT,1,"0.1.0",1,Instant.now().toString(),sha256(snapshot),counts);
+                Manifest manifest=new Manifest(FORMAT,1,"0.1.0",DatabaseMigrations.CURRENT,Instant.now().toString(),sha256(snapshot),counts);
                 Path zip=work.resolve("backup.zip");
                 try (ZipOutputStream output=new ZipOutputStream(Files.newOutputStream(zip))) {
                     output.putNextEntry(new ZipEntry("manifest.json")); output.write(JSON.writeValueAsBytes(manifest)); output.closeEntry();
@@ -94,6 +94,8 @@ public class BackupService {
             if (upload==null || Instant.now().isAfter(upload.expires)) throw new IllegalArgumentException("恢复预览已过期，请重新选择备份");
             if (!sha256(upload.database).equalsIgnoreCase(upload.manifest.databaseSha256)) throw new IllegalArgumentException("预览后的备份发生变化，请重新选择");
             validateDatabase(upload.database,upload.manifest);
+            // V1 archives are validated against the bundled V1 schema before any local migration runs.
+            if(upload.manifest.schemaVersion<DatabaseMigrations.CURRENT) DatabaseMigrations.forFile(upload.database,DatabaseMigrations.CURRENT).migrate();
             // Only known-schema files reach this point. Read permission is not inherited from an imported path.
             SQLiteConfig config=new SQLiteConfig(); config.enforceForeignKeys(true);
             try (Connection c=DriverManager.getConnection("jdbc:sqlite:"+upload.database,config.toProperties()); Statement s=c.createStatement()) {
@@ -109,12 +111,18 @@ public class BackupService {
         }
     }
     private void validateManifest(Manifest m) {
-        if (m==null || !FORMAT.equals(m.format) || m.formatVersion!=1 || m.schemaVersion!=1 || m.counts==null
+        if (m==null || !FORMAT.equals(m.format) || m.formatVersion!=1 || m.schemaVersion<1 || m.schemaVersion>DatabaseMigrations.CURRENT || m.counts==null
             || m.databaseSha256==null || !m.databaseSha256.matches("[a-fA-F0-9]{64}")) throw new IllegalArgumentException("备份格式或数据库版本不受支持");
         try { Instant.parse(m.exportedAt); } catch (Exception e) { throw new IllegalArgumentException("备份时间格式无效"); }
     }
     private List<String> validateDatabase(Path file,Manifest manifest) throws SQLException,IOException {
-        try (Connection candidate=readOnly(file); Connection current=database.getConnection()) {
+        Path reference=null;
+        try {
+            if(manifest.schemaVersion<DatabaseMigrations.CURRENT) {
+                reference=Files.createTempFile(paths.data,"known-schema-",".db");
+                DatabaseMigrations.forFile(reference,manifest.schemaVersion).migrate();
+            }
+        try (Connection candidate=readOnly(file); Connection current=reference==null?database.getConnection():readOnly(reference)) {
             if (!schema(candidate).equals(schema(current))) throw new IllegalArgumentException("备份表结构与当前版本不符，拒绝执行未知数据库结构");
             try (Statement s=candidate.createStatement(); ResultSet r=s.executeQuery("PRAGMA integrity_check")) {
                 if (!r.next() || !"ok".equals(r.getString(1)) || r.next()) throw new IllegalArgumentException("备份数据库完整性检查失败");
@@ -145,6 +153,7 @@ public class BackupService {
             }
             return rootPaths.values().stream().map(Path::toString).sorted().toList();
         }
+        } finally { if(reference!=null)Files.deleteIfExists(reference); }
     }
     private static Path validPath(String value,String normalized) {
         if (value==null || value.length()>32760) throw new IllegalArgumentException("备份路径无效");

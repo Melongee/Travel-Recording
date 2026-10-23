@@ -11,7 +11,7 @@ interface Inspection {
 export default function BackupPanel({overview,onSaved}:{overview:Overview;onSaved:()=>Promise<void>}) {
   const input=useRef<HTMLInputElement>(null);
   const [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),[inspection,setInspection]=useState<Inspection|null>(null);
-  const empty=overview.photoCount===0&&overview.places.length===0&&overview.categories.length===0&&overview.roots.length===0;
+  const empty=overview.photoCount===0&&overview.excludedCount===0&&overview.places.length===0&&overview.categories.length===0&&overview.roots.length===0;
   const exportBackup=async()=>{
     setBusy('export');setError('');setMessage('');
     try {
@@ -44,7 +44,7 @@ export default function BackupPanel({overview,onSaved}:{overview:Overview;onSave
     <div><h3>从备份恢复</h3><p>{empty?'选择备份后先预览内容，确认再恢复。':'当前图库已有数据。本轮只允许向空图库恢复；可用新的数据目录启动后恢复。'}</p><button className="button secondary" disabled={!!busy} onClick={()=>input.current?.click()}><Upload size={15}/>{busy==='inspect'?'正在校验…':'选择备份并预览'}</button><input ref={input} type="file" accept=".zip,application/zip" aria-label="选择备份文件" hidden onChange={e=>void inspect(e.target.files?.[0])}/></div></div>
     {message&&<p className="backup-message" role="status">{message}</p>}{error&&!inspection&&<p className="form-error backup-message" role="alert">{error}</p>}
     {inspection&&<Modal title="恢复备份预览" description="仅恢复管理信息；原始照片不会被上传、移动或覆盖。" onClose={()=>{if(!busy)setInspection(null);}}>
-      <dl className="backup-summary"><dt>备份时间</dt><dd>{new Date(inspection.manifest.exportedAt).toLocaleString('zh-CN')}</dd><dt>照片</dt><dd>{inspection.manifest.counts.photos} 张</dd><dt>旅行地点</dt><dd>{inspection.manifest.counts.places} 个</dd><dt>照片类别</dt><dd>{inspection.manifest.counts.categories} 个</dd></dl>
+      <dl className="backup-summary"><dt>备份时间</dt><dd>{new Date(inspection.manifest.exportedAt).toLocaleString('zh-CN')}</dd><dt>照片记录</dt><dd>{inspection.manifest.counts.photos} 张（含已排除照片）</dd><dt>旅行地点</dt><dd>{inspection.manifest.counts.places} 个</dd><dt>照片类别</dt><dd>{inspection.manifest.counts.categories} 个</dd></dl>
       <p className="muted-note">备份中的目录（恢复后需逐个确认访问）：</p><ul className="restore-roots">{inspection.roots.map(path=><li key={path}><code>{path}</code></li>)}</ul>
       <div className="inline-notice">{empty?'恢复后会重新打开数据库。请保留备份文件；缩略图可以重建。':'当前图库不是空图库，不能执行恢复，也不会覆盖现有分类。'}</div>
       {error&&<p className="form-error" role="alert">{error}</p>}<div className="modal-footer"><button className="button secondary" disabled={busy==='restore'} onClick={()=>setInspection(null)}>取消</button><button className="button primary" disabled={!empty||!!busy} onClick={()=>void restore()}>{busy==='restore'?'正在恢复…':'确认恢复到空图库'}</button></div>

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
+import org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy;
 
 @Configuration
 public class AppConfig {
@@ -12,6 +13,11 @@ public class AppConfig {
 
     @Bean
     LibraryDatabase dataSource(AppPaths paths) { return new LibraryDatabase(paths); }
+
+    @Bean
+    FlywayMigrationStrategy migrationStrategy(LibraryDatabase database,AppPaths paths) {
+        return flyway -> DatabaseMigrations.migrate(flyway,database,paths);
+    }
 }
 
 class AppPaths {
