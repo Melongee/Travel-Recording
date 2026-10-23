@@ -11,6 +11,8 @@ import type {GeographyState} from './components/GeographyPanel';
 import {watchTileRecovery} from './tileRecovery';
 import {useCityBoundaries} from './useCityBoundaries';
 import type {CityFeature} from './useCityBoundaries';
+import {usePlaceMarkers} from './usePlaceMarkers';
+import MapPlaceList from './components/MapPlaceList';
 
 interface TravelMapProps {
   places: Place[];
@@ -90,6 +92,7 @@ export default function TravelMap(props: TravelMapProps) {
   const [city,setCity]=useState<CityFeature|null>(null);
   const provinceCode=PROVINCES.find(item=>item[0]===provinceName(province))?.[1]||'';
   const cityBoundaries=useCityBoundaries(mapRef,provinceCode,!pickMode&&!!province,city,setCity);
+  const mappedPlaces=usePlaceMarkers(mapRef,places,province,!pickMode&&!!data,city?.properties.adcode||'',props.onPlaceClick);
   useEffect(()=>setCity(null),[province]);
 
   useEffect(()=>{let active=true;api<GeographyState>('/geography/status').then(value=>{if(active)setGeography(value);}).catch(()=>{if(active)setOnlineError('地图配置读取失败，基础地图仍可使用');});return()=>{active=false;};},[]);
@@ -251,7 +254,7 @@ export default function TravelMap(props: TravelMapProps) {
       const visiblePlaces = province && !(pickMode && pickOverview)
         ? places.filter((place) => provinceName(place.province) === selectedProvince)
         : [];
-      for (const place of visiblePlaces) {
+      for (const place of pickMode?visiblePlaces:[]) {
         const cover = place.coverSrc;
         const count = place.photoCount;
         const accessibleName = `${place.name}，${count} 张照片，打开相册`;
@@ -406,6 +409,7 @@ export default function TravelMap(props: TravelMapProps) {
         <button type="button" aria-label="回到全国地图" onClick={resetNationalView}><RotateCcw size={14} /></button>
       </div>
       <div className="map-online-control"><button type="button" disabled={!geography?.configured||geography.offline} onClick={()=>{setOnlineError('');setOnline(!online);}}>{online?'切回基础地图':'在线地图'}</button>{!geography?.configured&&<span>未配置 Key · 基础地图可用</span>}</div>
+      {!pickMode&&<MapPlaceList places={mappedPlaces.openPlaces} onClose={mappedPlaces.closePlaces} onSelect={props.onPlaceClick}/>}
       {onlineError&&<div className="map-online-error" role="status">{onlineError}</div>}
       {!pickMode&&province&&<div className="map-city-status" role="status">{cityBoundaries.status==='loading'?'正在读取本地市界…':cityBoundaries.status==='error'?<>市界未能加载，省份和地点仍可浏览。<button type="button" onClick={cityBoundaries.retry}>重试</button></>:cityBoundaries.empty?'当前资源未提供该区域的下级市界':city?'点击省份名称返回全省，或选择其他市界':'点击市界放大 · 仅用于地图浏览'}</div>}
       {!compact && <div className="map-legend"><span className="map-legend-visited" />留下回忆的省份<span className="map-legend-rest" />待出发{!province && !pickMode && places.length > 0 && <em>数字为旅行地点数</em>}</div>}

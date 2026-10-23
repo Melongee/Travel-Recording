@@ -48,6 +48,30 @@
 .map-source-note { position: absolute; z-index: 8; bottom: 5px; right: 9px; color: #83917b; font-size: 8px; letter-spacing: .1px; pointer-events: none; }
 .map-pick-tip { position: absolute; z-index: 9; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; white-space: nowrap; padding: 6px 10px; border-radius: 6px; background: #fffef7ec; box-shadow: 0 1px 8px #40533d16; color: #4f6950; font-size: 10px; pointer-events: none; }
 .travel-place-marker { background: transparent; border: 0; cursor: pointer; }
+.travel-place-cluster { background: transparent; border: 0; cursor: pointer; }
+.place-cluster-body { display: flex; align-items: center; justify-content: center; gap: 6px; width: 64px; height: 48px; padding: 5px 7px; border: 2px solid #fff; border-radius: 14px; background: #edf4e9; box-shadow: 0 2px 9px #29442b40; color: #295b4d; }
+.place-cluster-body strong { font-size: 13px; white-space: nowrap; }
+.place-cluster-covers { position: relative; display: block; width: 26px; height: 32px; }
+.place-cluster-covers:empty { width: 8px; height: 8px; border-radius: 50%; background: #7d9d7e; }
+.place-cluster-covers img { position: absolute; width: 23px; height: 28px; object-fit: cover; border: 1px solid #fff; border-radius: 5px; }
+.place-cluster-covers img:nth-child(2) { left: 6px; top: 4px; }
+.travel-place-cluster:hover .place-cluster-body { background: #fff; }
+.travel-place-cluster:focus-visible { outline: none; }
+.travel-place-cluster:focus-visible .place-cluster-body { outline: 3px solid #295b4d; outline-offset: 2px; }
+.map-place-list { position: absolute; bottom: 78px; left: 14px; z-index: 10; width: min(320px, calc(100% - 28px)); max-height: min(280px, 46%); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #d7e2d3; border-radius: 10px; background: #fffffff5; box-shadow: 0 4px 20px #29442b24; color: #2f5544; }
+.map-place-list-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 12px 13px; border-bottom: 1px solid #e7ede3; }
+.map-place-list-heading>div { display: grid; gap: 5px; }
+.map-place-list-heading strong { font-size: 12px; }
+.map-place-list-heading small { font-size: 10px; color: #84937c; }
+.map-place-list-heading>button { padding: 2px; color: #7b8e79; }
+.map-place-list-items { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.map-place-list-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 13px; text-align: left; border-bottom: 1px solid #edf1e9; }
+.map-place-list-item:hover,.map-place-list-item:focus-visible { background: #eff5ec; }
+.map-place-list-item>img,.map-list-empty { width: 36px; height: 36px; flex-shrink: 0; object-fit: cover; border-radius: 6px; }
+.map-list-empty { display: grid; place-items: center; background: #e7efe2; color: #809b79; }
+.map-place-list-item>span:last-child { display: grid; gap: 4px; min-width: 0; }
+.map-place-list-item strong { font-size: 12px; overflow-wrap: anywhere; }
+.map-place-list-item small { font-size: 10px; color: #85947d; }
 .place-marker-body { position: relative; display: flex; align-items: center; flex-direction: column; width: 56px; transform: translate(var(--marker-x, 0), var(--marker-y, 0)); transition: filter .15s; }
 .travel-place-marker:hover .place-marker-body { filter: drop-shadow(0 2px 3px #29442b30); }
 .travel-place-marker:focus-visible { outline: 0; }
