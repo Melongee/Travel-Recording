@@ -95,7 +95,7 @@ public class LibraryService {
                       @NotNull @DecimalMin("-90") @DecimalMax("90") Double lat,@NotNull @DecimalMin("-180") @DecimalMax("180") Double lng,@Size(max=500) String description,GeographyService.Source source) {
         PlaceInput(String name,String province,String provinceCode,Double lat,Double lng,String description){this(name,province,provinceCode,lat,lng,description,null);}
     }
-    private static final Map<String,String> PROVINCES=Map.ofEntries(
+    static final Map<String,String> PROVINCES=Map.ofEntries(
         Map.entry("110000","北京"),Map.entry("120000","天津"),Map.entry("130000","河北"),Map.entry("140000","山西"),Map.entry("150000","内蒙古"),
         Map.entry("210000","辽宁"),Map.entry("220000","吉林"),Map.entry("230000","黑龙江"),Map.entry("310000","上海"),Map.entry("320000","江苏"),
         Map.entry("330000","浙江"),Map.entry("340000","安徽"),Map.entry("350000","福建"),Map.entry("360000","江西"),Map.entry("370000","山东"),

@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import './map.css';
 import {api} from './api';
 import type {GeographyState} from './components/GeographyPanel';
+import {watchTileRecovery} from './tileRecovery';
 
 interface TravelMapProps {
   places: Place[];
@@ -93,7 +94,7 @@ export default function TravelMap(props: TravelMapProps) {
       maxZoom: 18,
       zoomSnap: 0.25,
       zoomDelta: 0.5,
-      scrollWheelZoom: false,
+      scrollWheelZoom: true,
       keyboard: true,
       doubleClickZoom: true,
     });
@@ -122,11 +123,22 @@ export default function TravelMap(props: TravelMapProps) {
 
   useEffect(()=>{
     const map=mapRef.current;if(!map||!online)return;
-    const layers=['vec','cva'].map(layer=>L.tileLayer(`/api/geography/tiles/${layer}/{z}/{x}/{y}`,{minZoom:1,maxZoom:18,noWrap:true,keepBuffer:1,updateWhenIdle:true}));
+    // Leaflet 1.9 checks CRS.wrapLng when validating tiles, even with noWrap.
+    // A wide viewport can cross 180° and otherwise request x >= 2^z. Explicit
+    // bounds clip those tiles without changing the user's zoom or world-wrapping.
+    const bounds=L.latLngBounds([[-85.0511287798,-180],[85.0511287798,180]]);
+    const layers=['vec','cva'].map(layer=>L.tileLayer(`/api/geography/tiles/${layer}/{z}/{x}/{y}`,{minZoom:1,maxZoom:18,noWrap:true,bounds,keepBuffer:1,updateWhenIdle:true}));
     let failed=false;
     const fallback=()=>{if(!failed){failed=true;setOnline(false);setOnlineError('在线地图暂不可用，已切回基础地图；地点和照片仍可使用');}};
-    layers.forEach(layer=>{layer.on('tileerror',fallback);layer.addTo(map);});
-    return()=>layers.forEach(layer=>{layer.off('tileerror',fallback);map.removeLayer(layer);});
+    const recovery=layers.map(layer=>watchTileRecovery(layer,fallback));
+    const reset=()=>recovery.forEach(item=>item.reset());
+    map.on('movestart',reset);
+    layers.forEach(layer=>layer.addTo(map));
+    return()=>{
+      map.off('movestart',reset);
+      recovery.forEach(item=>item.dispose());
+      layers.forEach(layer=>map.removeLayer(layer));
+    };
   },[online]);
 
   useEffect(() => {
@@ -365,7 +377,7 @@ export default function TravelMap(props: TravelMapProps) {
           <button type="button" onClick={resetNationalView} title="回到全国地图"><Home size={13} />中国</button>
           {breadcrumbProvince && <><ChevronRight size={12} /><span>{provinceName(breadcrumbProvince)}</span></>}
         </nav>
-        {!compact && <span className="map-offline-badge"><Layers3 size={12} />基础地图 · 离线可用</span>}
+        {!compact && <span className="map-offline-badge"><Layers3 size={12} />{online?'在线地图 · 天地图':'基础地图 · 离线可用'}</span>}
       </div>
       <div className="map-zoom-controls" aria-label="地图缩放">
         <button type="button" aria-label="放大地图" onClick={() => mapRef.current?.zoomIn()}><Plus size={17} /></button>

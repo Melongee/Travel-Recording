@@ -22,6 +22,8 @@ try {
     try {
         & npm.cmd ci --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+        & npm.cmd test
+        if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed' }
         & npm.cmd run build
         if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
     } finally { Pop-Location }

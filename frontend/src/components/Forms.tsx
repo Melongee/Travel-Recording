@@ -1,13 +1,9 @@
 import {useState} from 'react';
-import {useQuery} from '@tanstack/react-query';
-import type {FormEvent} from 'react';
-import {Check,MapPin,Plus,ShieldCheck,Tag,Trash2,Pencil} from 'lucide-react';
+import {Check,Plus,ShieldCheck,Tag,Trash2,Pencil} from 'lucide-react';
 import type {Overview,Photo,Place} from '../model';
-import {PROVINCES} from '../model';
 import Modal from './Modal';
-import TravelMap from '../TravelMap';
 import {api} from '../api';
-import type {GeographyState} from './GeographyPanel';
+export {default as PlaceForm} from './PlaceForm';
 
 function useAction() {
   const [error,setError]=useState(''),[busy,setBusy]=useState(false);
@@ -20,25 +16,6 @@ export function RootForm({onClose,onSaved}:{onClose:()=>void;onSaved:()=>Promise
     <label className="form-field">目录路径<input aria-label="目录路径" value={path} required maxLength={1024} placeholder="例如：D:\照片\test" onChange={e=>setPath(e.target.value)}/></label>
     <p className="form-note"><ShieldCheck size={14}/>原始照片只读，索引与缓存保存到独立应用数据目录。</p>{error&&<p className="form-error" role="alert">{error}</p>}
     <div className="modal-footer"><button className="button secondary" type="button" onClick={onClose}>取消</button><button className="button primary" disabled={busy} type="submit">{busy?'正在添加…':'添加目录'}</button></div>
-  </form></Modal>;
-}
-export function PlaceForm({place,province,overview,onClose,onSaved}:{place?:Place;province:string;overview:Overview;onClose:()=>void;onSaved:()=>Promise<void>}) {
-  const [name,setName]=useState(place?.name||''),[region,setRegion]=useState(place?.province||province||'青海'),[lat,setLat]=useState(place?.lat||36.9),[lng,setLng]=useState(place?.lng||100.18),[description,setDescription]=useState(place?.description||'');
-  const {error,busy,run}=useAction();
-  type Source={provider:string;coordinateSystem:string;lat:number;lng:number;poiId:string;adaptation:string};
-  type Candidate={name:string;address:string;province:string;provinceCode:string;lat:number;lng:number;source:Source};
-  const [source,setSource]=useState<Source|undefined>(()=>{try{return place?.coordinateSource&&place.coordinateSource!=='manual'?JSON.parse(place.coordinateSource):undefined;}catch{return undefined;}}),[candidates,setCandidates]=useState<Candidate[]>([]),[searching,setSearching]=useState(false),[searchError,setSearchError]=useState(''),[searchMessage,setSearchMessage]=useState('');
-  const geo=useQuery({queryKey:['geography'],queryFn:()=>api<GeographyState>('/geography/status')});
-  const searchPlace=async()=>{setSearching(true);setSearchError('');setSearchMessage('');setCandidates([]);try{const result=await api<Candidate[]>(`/geography/search?${new URLSearchParams({q:name,provinceCode:PROVINCES.find(p=>p[0]===region)![1]})}`);setCandidates(result);if(!result.length)setSearchMessage('没有找到结果，可换一个地名或在地图上手动选点。');}catch(e){setSearchError((e as Error).message);}finally{setSearching(false);}};
-  const submit=(e:FormEvent)=>{e.preventDefault();void run(async()=>{await api(place?`/places/${place.id}`:'/places',{name:name.trim(),province:region,provinceCode:PROVINCES.find(p=>p[0]===region)![1],lat,lng,description,source},place?'PATCH':'POST');await onSaved();onClose();});};
-  return <Modal title={place?'编辑旅行地点':'收藏新的旅行地点'} description="选择省份并手动定位；配置天地图后可搜索地名。离线仍可保存手动位置。" onClose={onClose} wide><form onSubmit={submit}>
-    <div className="form-row"><label className="form-field grow">地点名称<input aria-label="地点名称" required value={name} maxLength={60} onChange={e=>setName(e.target.value)} placeholder="例如：青海湖"/></label><label className="form-field region-field">所属省份<select aria-label="所属省份" value={region} onChange={e=>setRegion(e.target.value)}>{PROVINCES.map(p=><option key={p[1]}>{p[0]}</option>)}</select></label></div>
-    <label className="form-field">地点描述<textarea value={description} maxLength={500} onChange={e=>setDescription(e.target.value)} rows={2}/></label>
-    <div className="geography-search"><button type="button" className="button secondary" disabled={searching||!name.trim()||!geo.data?.configured||geo.data.offline} onClick={()=>void searchPlace()}>{searching?'正在搜索…':'搜索地名'}</button><span>{geo.data?.configured?'天地图 · 联网搜索':geo.data?.message||'地图配置读取中…'}</span></div>
-    {searchError&&<p className="form-error" role="alert">{searchError}</p>}{searchMessage&&<p className="muted-note" role="status">{searchMessage}</p>}{candidates.length>0&&<div className="search-candidates">{candidates.map((c,i)=><button key={i} type="button" onClick={()=>{setName(c.name);setLat(c.lat);setLng(c.lng);setSource(c.source);const p=PROVINCES.find(p=>p[1]===c.provinceCode);if(p)setRegion(p[0]);setCandidates([]);}}><MapPin size={14}/><strong>{c.name}</strong><small>{c.address}</small></button>)}</div>}
-    <div className="form-map"><TravelMap places={overview.places} photos={[]} province={region} onProvinceChange={setRegion} onPlaceClick={()=>{}} compact pickMode selectedPoint={{lat,lng}} onPick={(lat,lng)=>{setSource(undefined);setLat(Number(lat.toFixed(6)));setLng(Number(lng.toFixed(6)));}}/></div>
-    <div className="coordinate-row"><span><MapPin size={12}/>{source?'天地图 CGCS2000 · WGS84 近似显示':'WGS84 · 手动位置'}</span><label>经度<input aria-label="经度" type="number" required min={-180} max={180} step="any" value={lng} onChange={e=>{setSource(undefined);setLng(Number(e.target.value));}}/></label><label>纬度<input aria-label="纬度" type="number" required min={-90} max={90} step="any" value={lat} onChange={e=>{setSource(undefined);setLat(Number(e.target.value));}}/></label></div>
-    {error&&<p className="form-error" role="alert">{error}</p>}<div className="modal-footer"><button type="button" className="button secondary" onClick={onClose}>取消</button><button type="submit" className="button primary" disabled={busy}>{busy?'保存中…':'保存地点'}</button></div>
   </form></Modal>;
 }
 export function ClassifyForm({photos,overview,onClose,onSaved}:{photos:Photo[];overview:Overview;onClose:()=>void;onSaved:()=>Promise<void>}) {

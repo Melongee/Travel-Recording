@@ -35,4 +35,25 @@ class GeographyServiceTest {
         assertTrue(permission.getMessage().contains("服务端"));assertFalse(permission.getMessage().contains("private-test-key"));
         assertTrue(assertThrows(GeographyService.Unavailable.class,()->wrongType.tile("vec",3,2,3)).getMessage().contains("301012"));
     }
+    @Test void nationwideSearchMatchesProvincesWithoutUsingTheFormsPreviousProvince(){
+        AtomicInteger calls=new AtomicInteger();
+        var service=new GeographyService("private-test-key",false,(uri,max)->{
+            calls.incrementAndGet();
+            String query=java.net.URLDecoder.decode(uri.getRawQuery(),StandardCharsets.UTF_8);
+            assertTrue(query.contains("\"specify\":\"156000000\""));
+            return new GeographyService.Reply(200,("""
+                {"status":{"infocode":1000},"pois":[
+                  {"name":"外滩","provinceCode":"156310000","lonlat":"121.49,31.24"},
+                  {"name":"青龙寺","cityCode":"610100","lonlat":"108.99,34.23"},
+                  {"name":"青海湖","province":"青海省","lonlat":"100.18,36.9"},
+                  {"name":"未知省份","provinceCode":"invalid","lonlat":"100,36"}
+                ]}
+                """).getBytes(StandardCharsets.UTF_8));
+        });
+        var result=service.search("景点","");
+        assertEquals(4,result.size());assertEquals("310000",result.get(0).provinceCode());assertEquals("上海",result.get(0).province());
+        assertEquals("610000",result.get(1).provinceCode());assertEquals("陕西",result.get(1).province());
+        assertEquals("630000",result.get(2).provinceCode());assertEquals("",result.get(3).provinceCode());
+        assertThrows(IllegalArgumentException.class,()->service.search("景点","990000"));assertEquals(1,calls.get());
+    }
 }

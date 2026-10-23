@@ -21,14 +21,15 @@ public class GeographyService {
         this.key=key.trim();this.offline=offline;this.transport=transport;
     }
     public record State(boolean configured,boolean offline,String provider,String message) {}
-    public State state(){return new State(!key.isBlank(),offline,"天地图",offline?"当前为离线模式，保留基础地图与本地照片管理":key.isBlank()?"尚未配置天地图 Key，可继续使用基础地图与手动选点":"已配置天地图，点击在线地图或地名搜索时才联网");}
+    public State state(){return new State(!key.isBlank(),offline,"天地图",offline?"当前为离线模式，保留基础地图与本地照片管理":key.isBlank()?"尚未配置天地图 Key，可继续使用基础地图与手动选点":"已配置天地图，切换在线地图或输入地点名称时联网");}
     private void requireOnline(){if(offline)throw new Unavailable("当前为离线模式，请使用基础地图和手动选点");if(key.isBlank())throw new Unavailable("尚未配置天地图 Key，请使用基础地图和手动选点");}
     public record Candidate(String name,String address,String province,String provinceCode,double lat,double lng,Source source) {}
     public record Source(String provider,String coordinateSystem,double lat,double lng,String poiId,String adaptation) {}
     public List<Candidate> search(String keyword,String provinceCode) {
-        requireOnline();keyword=keyword.trim();
-        if(keyword.isEmpty()||keyword.length()>80||!provinceCode.matches("[1-8][0-9]0000"))throw new IllegalArgumentException("请填写有效地名并选择省份");
-        Map<String,Object> query=Map.of("keyWord",keyword,"specify","156"+provinceCode,"queryType",12,"start",0,"count",10,"show",2);
+        requireOnline();keyword=keyword.trim();provinceCode=provinceCode==null?"":provinceCode.trim();
+        if(keyword.isEmpty()||keyword.length()>80||(!provinceCode.isEmpty()&&!LibraryService.PROVINCES.containsKey(provinceCode)))throw new IllegalArgumentException("请填写有效地名或省份编码");
+        // An omitted province searches nationwide; choosing a result supplies its province.
+        Map<String,Object> query=Map.of("keyWord",keyword,"specify",provinceCode.isEmpty()?"156000000":"156"+provinceCode,"queryType",12,"start",0,"count",10,"show",2);
         URI uri=URI.create("https://api.tianditu.gov.cn/v2/search?postStr="+encode(JSON.writeValueAsString(query))+"&type=query&tk="+encode(key));
         try {
             Reply reply=transport.get(uri,1024*1024);
@@ -43,13 +44,27 @@ public class GeographyService {
                 try {
                     double lng=Double.parseDouble(xy[0]),lat=Double.parseDouble(xy[1]);
                     if(!Double.isFinite(lng)||!Double.isFinite(lat)||Math.abs(lng)>180||Math.abs(lat)>90)continue;
-                    String codeValue=poi.path("provinceCode").asText(provinceCode);if(codeValue.startsWith("156"))codeValue=codeValue.substring(3);if(codeValue.length()!=6)codeValue=provinceCode;
-                    candidates.add(new Candidate(poi.path("name").asText(keyword),poi.path("address").asText(""),poi.path("province").asText(""),codeValue,lat,lng,
+                    String codeValue=provinceCode(poi);
+                    candidates.add(new Candidate(poi.path("name").asText(keyword),poi.path("address").asText(""),LibraryService.PROVINCES.getOrDefault(codeValue,""),codeValue,lat,lng,
                         new Source("tianditu","CGCS2000",lat,lng,poi.path("hotPointID").asText(""),"geographic-approximation")));
+                    if(candidates.size()==10)break;
                 }catch(NumberFormatException ignored){}
             }
             return candidates;
         } catch(Unavailable e){throw e;}catch(Exception e){throw new Unavailable("在线搜索连接失败，基础地图和手动选点仍可使用");}
+    }
+    private static String provinceCode(JsonNode poi) {
+        // Some POIs contain a 9-digit GB code, others only a city/county code or name.
+        for(String field:List.of("provinceCode","cityCode","countyCode")) {
+            String code=poi.path(field).asText("");
+            if(code.matches("156[0-9]{6}"))code=code.substring(3);
+            if(code.matches("[0-9]{6}")) {
+                String province=code.substring(0,2)+"0000";
+                if(LibraryService.PROVINCES.containsKey(province))return province;
+            }
+        }
+        String name=poi.path("province").asText("").replaceFirst("特别行政区$|维吾尔自治区$|壮族自治区$|回族自治区$|自治区$|省$|市$","");
+        return LibraryService.PROVINCES.entrySet().stream().filter(entry->entry.getValue().equals(name)).map(Map.Entry::getKey).findFirst().orElse("");
     }
     public record Tile(byte[] body,String type) {}
     public Tile tile(String layer,int z,int x,int y) {
