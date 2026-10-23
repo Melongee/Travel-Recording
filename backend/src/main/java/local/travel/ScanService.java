@@ -12,6 +12,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Supplier;
 
 @Service
 public class ScanService {
@@ -32,7 +33,7 @@ public class ScanService {
         var a = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         return a.isSymbolicLink() || a.isOther();
     }
-    Root addRoot(String value) throws IOException {
+    synchronized Root addRoot(String value) throws IOException {
         Path requested = Path.of(value).toAbsolutePath().normalize();
         if (!Files.isDirectory(requested) || !Files.isReadable(requested)) throw new IllegalArgumentException("目录不存在或不可读");
         // Reject reparse points at every level, including a linked root or parent.
@@ -51,7 +52,7 @@ public class ScanService {
         roots.insert(r); return r;
     }
     public Status current() { return status; }
-    public Root confirmRoot(String id) throws IOException {
+    public synchronized Root confirmRoot(String id) throws IOException {
         Root root=roots.selectById(id);
         if (root==null) throw new NoSuchElementException("目录不存在");
         return addRoot(root.path);
@@ -60,6 +61,10 @@ public class ScanService {
         if (status.state.equals("running")) return status;
         status=new Status("running",0,0,0,0,0,0,List.of());
         worker.submit(this::run); return status;
+    }
+    synchronized <T> T whenIdle(Supplier<T> action) {
+        if(status.state.equals("running"))throw new LibraryMaintenance.Busy("扫描尚未结束，请等待完成后再移除目录");
+        return action.get();
     }
     private void run() {
         try (var lease=maintenance.read()) { runWithAccess(); }

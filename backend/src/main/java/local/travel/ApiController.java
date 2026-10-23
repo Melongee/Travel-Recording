@@ -16,13 +16,16 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class ApiController {
-    final LibraryService library; final ScanService scans; final ImageService images; final FileRevealService files; final FolderPickerService folders;
-    ApiController(LibraryService library, ScanService scans, ImageService images,FileRevealService files,FolderPickerService folders) { this.library=library; this.scans=scans; this.images=images;this.files=files;this.folders=folders; }
+    final LibraryService library; final ScanService scans; final ImageService images; final FileRevealService files; final FolderPickerService folders; final RootRemovalService rootRemoval;
+    ApiController(LibraryService library, ScanService scans, ImageService images,FileRevealService files,FolderPickerService folders,RootRemovalService rootRemoval) { this.library=library; this.scans=scans; this.images=images;this.files=files;this.folders=folders;this.rootRemoval=rootRemoval; }
     @GetMapping("/health") Object health(@Value("${app.data-dir}") String dataDir) { return Map.of("app","travel-recording","version","0.1.0","dataDir",Path.of(dataDir).toAbsolutePath().normalize().toString()); }
     @GetMapping("/session") Object session(CsrfToken token) { return Map.of("token",token.getToken(),"headerName",token.getHeaderName()); }
     @GetMapping("/overview") Object overview() { return library.overview(); }
     @GetMapping("/roots") Object roots() { return library.allRoots(); }
     @PostMapping("/roots/choose-folder") Object chooseFolder() throws IOException { return folders.choose(); }
+    @GetMapping("/roots/{id}/removal") Object rootRemoval(@PathVariable String id) { return rootRemoval.preview(id); }
+    record RemoveRootInput(@NotBlank @Pattern(regexp="[0-9a-f]{64}") String token) {}
+    @DeleteMapping("/roots/{id}") Object removeRoot(@PathVariable String id,@Valid @RequestBody RemoveRootInput input) { return rootRemoval.remove(id,input.token); }
     record RootInput(@NotBlank @Size(max=1024) String path) {}
     @PostMapping("/roots") Object root(@Valid @RequestBody RootInput input) throws IOException { return scans.addRoot(input.path); }
     @PostMapping("/roots/{id}/confirm") Object confirmRoot(@PathVariable String id) throws IOException { return scans.confirmRoot(id); }
