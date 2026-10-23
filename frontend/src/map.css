@@ -9,13 +9,14 @@
   border-radius: 14px;
 }
 .travel-map-compact { height: 230px; border-radius: 10px; }
-.map-layout > .map-card > .travel-map { height: clamp(520px, 68vh, 820px); }
+.travel-map-frame { position: relative; min-width: 0; container: travel-map-frame / inline-size; }
+.map-layout > .map-card > .travel-map-frame > .travel-map { height: clamp(520px, 68vh, 820px); }
 @media (min-width: 1051px) {
   .app-shell .map-layout { grid-template-columns: minmax(0, 1fr) 260px; }
   .map-layout > .places-panel { max-height: calc(clamp(520px, 68vh, 820px) + 41px); }
 }
 @media (max-width: 1050px) {
-  .map-layout > .map-card > .travel-map { height: clamp(440px, 60vh, 680px); }
+  .map-layout > .map-card > .travel-map-frame > .travel-map { height: clamp(440px, 60vh, 680px); }
 }
 .travel-map-canvas { width: 100%; height: 100%; background: #edf0e9; outline: 0; }
 .travel-map-picking .travel-map-canvas { cursor: crosshair; }
@@ -72,6 +73,14 @@
 .map-place-list-item>span:last-child { display: grid; gap: 4px; min-width: 0; }
 .map-place-list-item strong { font-size: 12px; overflow-wrap: anywhere; }
 .map-place-list-item small { font-size: 10px; color: #85947d; }
+@container travel-map-frame (max-width: 760px) {
+  .map-place-list { position: relative; inset: auto; width: 100%; max-height: none; margin-top: 10px; box-shadow: none; }
+  .map-place-list-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 300px; }
+  .map-place-list-item { align-items: flex-start; }
+}
+@container travel-map-frame (max-width: 460px) {
+  .map-place-list-items { grid-template-columns: minmax(0, 1fr); }
+}
 .place-marker-body { position: relative; display: flex; align-items: center; flex-direction: column; width: 56px; transform: translate(var(--marker-x, 0), var(--marker-y, 0)); transition: filter .15s; }
 .travel-place-marker:hover .place-marker-body { filter: drop-shadow(0 2px 3px #29442b30); }
 .travel-place-marker:focus-visible { outline: 0; }

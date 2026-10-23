@@ -393,6 +393,7 @@ export default function TravelMap(props: TravelMapProps) {
   };
 
   return (
+    <div className="travel-map-frame">
     <div className={`travel-map ${compact ? 'travel-map-compact' : ''} ${pickMode ? 'travel-map-picking' : ''}`}>
       <div ref={containerRef} className="travel-map-canvas" role="region" aria-label={pickMode ? '选择地点位置的地图' : '旅行地图，点击省份或地点浏览照片'} />
       <div className="travel-map-topline">
@@ -409,7 +410,6 @@ export default function TravelMap(props: TravelMapProps) {
         <button type="button" aria-label="回到全国地图" onClick={resetNationalView}><RotateCcw size={14} /></button>
       </div>
       <div className="map-online-control"><button type="button" disabled={!geography?.configured||geography.offline} onClick={()=>{setOnlineError('');setOnline(!online);}}>{online?'切回基础地图':'在线地图'}</button>{!geography?.configured&&<span>未配置 Key · 基础地图可用</span>}</div>
-      {!pickMode&&<MapPlaceList places={mappedPlaces.openPlaces} onClose={mappedPlaces.closePlaces} onSelect={props.onPlaceClick}/>}
       {onlineError&&<div className="map-online-error" role="status">{onlineError}</div>}
       {!pickMode&&province&&<div className="map-city-status" role="status">{cityBoundaries.status==='loading'?'正在读取本地市界…':cityBoundaries.status==='error'?<>市界未能加载，省份和地点仍可浏览。<button type="button" onClick={cityBoundaries.retry}>重试</button></>:cityBoundaries.empty?'当前资源未提供该区域的下级市界':city?'点击省份名称返回全省，或选择其他市界':'点击市界放大 · 仅用于地图浏览'}</div>}
       {!compact && <div className="map-legend"><span className="map-legend-visited" />留下回忆的省份<span className="map-legend-rest" />待出发{!province && !pickMode && places.length > 0 && <em>数字为旅行地点数</em>}</div>}
@@ -421,6 +421,8 @@ export default function TravelMap(props: TravelMapProps) {
         <span>{loadState === 'loading' ? '读取本地省份边界…' : '请检查本地地图资源，地点列表仍可继续使用。'}</span>
         {loadState === 'error' && <button type="button" onClick={() => setRetryKey((value) => value + 1)}>重新加载</button>}
       </div>}
+    </div>
+    {!pickMode&&<MapPlaceList places={mappedPlaces.openPlaces} onClose={mappedPlaces.closePlaces} onSelect={props.onPlaceClick}/>}
     </div>
   );
 }

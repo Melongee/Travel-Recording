@@ -38,7 +38,10 @@ export function usePlaceMarkers(mapRef:RefObject<L.Map|null>,places:Place[],prov
           if(!multiple){actionRef.current(place.id);return;}
           setOpenIds(cluster.items.map(item=>item.id));
           const bounds=L.latLngBounds(cluster.items.map(item=>[item.lat,item.lng] as L.LatLngTuple));
-          const size=map.getSize(),paddingTopLeft=L.point(Math.min(size.x*0.5,350),140),paddingBottomRight=L.point(40,Math.min(size.y*0.5,280));
+          const size=map.getSize(),narrow=size.x<=760;
+          // 窄图的列表在地图下方，使用完整画布；宽图仍为左下方浮层留出空间。
+          const paddingTopLeft=narrow?L.point(40,110):L.point(Math.min(size.x*0.5,350),140);
+          const paddingBottomRight=narrow?L.point(40,90):L.point(40,Math.min(size.y*0.5,280));
           const coincident=bounds.getNorthEast().equals(bounds.getSouthWest(),1e-8);
           const nextZoom=coincident?map.getZoom():Math.min(map.getZoom()+2,map.getBoundsZoom(bounds,false,paddingTopLeft.add(paddingBottomRight)),map.getMaxZoom());
           if(Number.isFinite(nextZoom)&&(coincident||nextZoom>map.getZoom()+0.25))map.stop().fitBounds(bounds,{paddingTopLeft,paddingBottomRight,maxZoom:nextZoom,animate:false});
