@@ -68,7 +68,7 @@ Windows 本机旅行照片相册。Java 服务只读访问你明确添加的照�
 2. 双击 **Build.cmd**；首次下载依赖需联网。
 3. 构建成功后运行 **Start.cmd**。
 
-构建会执行 `npm ci`、TypeScript 检查、Vite 生产构建、后端集成测试，再打包。输出为 `backend/target/travel-recording-0.1.0.jar`，包含页面、API、SQLite 驱动和图片插件。运行 JAR 不需要 Node.js。
+构建会执行 `npm ci`、前端测试、TypeScript 检查、Vite 生产构建、后端集成测试，再打包。输出为 `backend/target/travel-recording-0.1.0.jar`，包含页面、API、SQLite 驱动和图片插件。运行 JAR 不需要 Node.js。
 
 本机 `.tools/jdk-21.0.12.1+1` 为已校验的 Eclipse Temurin Java 21，脚本优先使用；没有该工具包时设置 `JAVA_HOME`，或执行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Prepare-Java.ps1` 下载官方 Java 21。不修改系统 Java 设置。
 
@@ -86,13 +86,15 @@ Windows 本机旅行照片相册。Java 服务只读访问你明确添加的照�
 - 天地图在线底图、地名搜索和坐标来源保存；无 Key、离线或在线异常时保留基础功能。
 - 照片详情打开原始文件所在目录，地点删除影响确认与取消。
 
-基础省界继续标记为交互示意。正式地图资源核验、严格无缓存且物理断网的组合验收、路径重新定位、启动自动扫描、10,000～50,000 张规模验证仍待后续推进。用户已断网手测地图，本轮另通过强制离线服务完成照片浏览与归类。没有账号、Agent、云同步或微服务。
+下一轮先按用户反馈优化现有页面逻辑；正式地图资源核验、严格无缓存且物理断网的组合验收、地点内挑选照片、启动自动扫描、元数据完善、路径重新定位及已有图库替换恢复等分批推进。基础省界继续标记为交互示意。用户已断网手测地图，另通过强制离线服务完成照片浏览与归类。没有账号、Agent、云同步或微服务。
+
+2026-10-23 用户已取消 **10,000～50,000 张专项能力/容量测试**，不再作为交付前置条件；保留已完成的 5,000 张样本记录，不新增照片数量硬性上限，不宣称未经验证的大规模能力。
 
 ## 验证与文档
 
 - [阶段 1 实施记录](docs/阶段1实施记录.md)：实际版本、接口、验证证据和下一步。
 - [MVP 验收记录](docs/MVP验收记录.md)：新增日常操作、20 项 5,000 张样本检查、实际耗时、离线点击及剩余边界。
-- [开发交接入口](docs/正式开发交接说明.md)、[PRD V1.2](docs/个人地图相册需求文档PRDv1.0.md)、[技术方案 V1.1](docs/个人旅行地图相册技术方案与迭代开发计划V1.0.md)。
+- [续开发交接入口](docs/正式开发交接说明.md)、[新对话启动提示词](docs/新对话启动提示词.md)、[PRD V1.2](docs/个人地图相册需求文档PRDv1.0.md)、[技术方案 V1.1](docs/个人旅行地图相册技术方案与迭代开发计划V1.0.md)。
 - `backend/src/test` 覆盖真实 SQLite、归类事务、去重、透明图、损坏图、缺失保留和方向变换。
 - 开发者可运行 `python scripts/create-samples.py`（需要 Pillow），再运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Verify-Package.ps1`，在 8091 端口和独立数据目录完成 20 项 JAR 验证。该脚本只移动项目内有生成标记的样本，用户照片不参与移动测试。
 - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Verify-Backup.ps1` 在 8093/8094 使用独立生成样本完成 14 项真实 JAR 备份恢复检查；自动停止验证服务，证据留在 `artifacts/backup-check-*`。
