@@ -4,7 +4,14 @@
   height: calc(100% - var(--viewer-footer-height));
   align-self: flex-start;
   padding: 35px 65px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  overscroll-behavior: contain;
 }
+.viewer-image-area.can-pan { cursor: grab; }
+.viewer-image-area.is-dragging { cursor: grabbing; }
+.viewer-image-area img { -webkit-user-drag: none; }
 .viewer-arrow { top: calc((100% - var(--viewer-footer-height)) / 2 - 24px); }
 .viewer-bottom {
   height: var(--viewer-footer-height);
