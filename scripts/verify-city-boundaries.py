@@ -7,7 +7,7 @@ import sys
 
 root=Path(__file__).resolve().parent.parent
 source=Path(sys.argv[1]).read_bytes()
-metadata=json.loads((root/'frontend/public/assets/assets-sources.json').read_text(encoding='utf-8'))[-1]
+metadata=next(item for item in json.loads((root/'frontend/public/assets/assets-sources.json').read_text(encoding='utf-8')) if item['file']=='cities/*.geojson')
 assert hashlib.sha256(source).hexdigest()==metadata['sourceSha256']
 original={str(f['properties']['id']):f for f in json.loads(source)['features']}
 provinces=json.loads((root/'frontend/public/assets/china-provinces.geojson').read_text(encoding='utf-8'))

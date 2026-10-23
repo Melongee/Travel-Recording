@@ -10,6 +10,12 @@ GeoJSON 包含 34 个省级交互区域，沿用 Demo 提取和中文属性整�
 
 脚本、样式、图标和此 GeoJSON 均随 JAR 提供，运行时不请求 CDN。用户断网地图手测及独立强制离线服务的浏览、归类与重启保存均已通过；2026-10-23 用户已取消新增物理断网及严格无缓存组合专项，不再安排或作为交付门槛。代表点位与多个缩放级别抽查通过，不替代正式基础地图内容核验。
 
+## 轻量离线道路（2026-10-24）
+
+用户选择“主要道路走向”方案。`roads/*.geojson` 来自 [Natural Earth Roads](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/roads/)，固定源文件与 SHA-256 见 `assets-sources.json`。Natural Earth contributors 提供的数据属[公共领域](https://www.naturalearthdata.com/about/terms-of-use/)。准备脚本提取 Major/Secondary Highway、Beltway、Bypass，按源 `expressway` 标记区分高速，其余只称“其他主干”，不等同于国道。省界裁切与概化在构建资源时执行，不在运行时联网。
+
+34 个省文件加全国概览共约 0.90 MB；全国显示较少的主要线路，选省后读取该省的较细线路，缩放后分级显示。没有完整道路编号，不承诺完整或实时路网，不用于导航。道路层可关闭；文件失效时保留省市和照片浏览并可重试。准备脚本使用 Shapely，应用运行无需 Python/Shapely。
+
 ## 市级交互叠加层（2026-10-23）
 
 用户新增省/市点击缩放需求。`cities/*.geojson` 来自 [cn-atlas](https://github.com/BarbarossaWang/cn-atlas/tree/6e83a19923e39f2c0e58a0a7ad29b349b2a71b9f)，固定提交 `6e83a19923e39f2c0e58a0a7ad29b349b2a71b9f` 的 `prefectures.json`；作者声明底层为 CTAmap 2023 版数据。上游 package.json 声明 ISC，底层仓库声明 MIT，许可与署名保留在 [cities-LICENSE.txt](cities-LICENSE.txt)，原地址、哈希与每个本地文件哈希记录在 [assets-sources.json](assets-sources.json)。

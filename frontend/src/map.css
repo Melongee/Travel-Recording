@@ -35,6 +35,13 @@
 .map-city-status { position: absolute; left: 14px; bottom: 42px; z-index: 9; max-width: calc(100% - 75px); padding: 6px 9px; border-radius: 5px; background: #fffffff0; color: #58715d; font-size: 10px; }
 .map-city-status button { margin-left: 8px; color: #295b4d; text-decoration: underline; }
 .map-offline-badge { display: flex; align-items: center; gap: 5px; padding: 5px 8px; background: #fafbf6d4; border: 1px solid #dce5d7; border-radius: 5px; font-size: 10px; color: #6c7b68; }
+.map-roads-control { position: absolute; top: 101px; right: 12px; z-index: 9; display: grid; justify-items: end; gap: 6px; max-width: 220px; }
+.map-roads-control>button { border: 1px solid #dbe5d5; border-radius: 5px; background: #fffffff2; color: #597751; padding: 7px 9px; font-size: 10px; }
+.map-roads-control>span { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border-radius: 4px; background: #fffffff0; color: #7e8979; font-size: 9px; }
+.map-roads-control>span button { color: #295b4d; text-decoration: underline; }
+.map-roads-control i { width: 13px; height: 2px; display: inline-block; }
+.map-highway-swatch { background: #d5a267; }
+.map-trunk-swatch { background: #c5bb9b; margin-left: 4px; }
 .map-zoom-controls { position: absolute; z-index: 9; right: 16px; bottom: 35px; display: grid; background: #fffffff5; border: 1px solid #dce3d7; border-radius: 7px; box-shadow: 0 2px 6px #293e2310; overflow: hidden; }
 .map-zoom-controls button { display: grid; place-items: center; width: 30px; height: 30px; color: #586f5b; border: 0; background: transparent; cursor: pointer; padding: 0; }
 .map-zoom-controls button + button { border-top: 1px solid #e8ece4; }
