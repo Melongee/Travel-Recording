@@ -16,12 +16,13 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class ApiController {
-    final LibraryService library; final ScanService scans; final ImageService images; final FileRevealService files;
-    ApiController(LibraryService library, ScanService scans, ImageService images,FileRevealService files) { this.library=library; this.scans=scans; this.images=images;this.files=files; }
+    final LibraryService library; final ScanService scans; final ImageService images; final FileRevealService files; final FolderPickerService folders;
+    ApiController(LibraryService library, ScanService scans, ImageService images,FileRevealService files,FolderPickerService folders) { this.library=library; this.scans=scans; this.images=images;this.files=files;this.folders=folders; }
     @GetMapping("/health") Object health(@Value("${app.data-dir}") String dataDir) { return Map.of("app","travel-recording","version","0.1.0","dataDir",Path.of(dataDir).toAbsolutePath().normalize().toString()); }
     @GetMapping("/session") Object session(CsrfToken token) { return Map.of("token",token.getToken(),"headerName",token.getHeaderName()); }
     @GetMapping("/overview") Object overview() { return library.overview(); }
     @GetMapping("/roots") Object roots() { return library.allRoots(); }
+    @PostMapping("/roots/choose-folder") Object chooseFolder() throws IOException { return folders.choose(); }
     record RootInput(@NotBlank @Size(max=1024) String path) {}
     @PostMapping("/roots") Object root(@Valid @RequestBody RootInput input) throws IOException { return scans.addRoot(input.path); }
     @PostMapping("/roots/{id}/confirm") Object confirmRoot(@PathVariable String id) throws IOException { return scans.confirmRoot(id); }

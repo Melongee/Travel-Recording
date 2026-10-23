@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Check,Plus,ShieldCheck,Tag,Trash2,Pencil} from 'lucide-react';
+import {Check,Plus,ShieldCheck,Tag,Trash2,Pencil,FolderOpen} from 'lucide-react';
 import type {Overview,Photo,Place} from '../model';
 import Modal from './Modal';
 import {api} from '../api';
@@ -11,11 +11,14 @@ function useAction() {
   return {error,busy,run};
 }
 export function RootForm({onClose,onSaved}:{onClose:()=>void;onSaved:()=>Promise<void>}) {
-  const [path,setPath]=useState(''); const {error,busy,run}=useAction();
-  return <Modal title="添加照片目录" description="只读取此目录及其子目录；添加后请手动扫描。" onClose={onClose}><form onSubmit={e=>{e.preventDefault();void run(async()=>{await api('/roots',{path:path.trim()});await onSaved();onClose();});}}>
-    <label className="form-field">目录路径<input aria-label="目录路径" value={path} required maxLength={1024} placeholder="例如：D:\照片\test" onChange={e=>setPath(e.target.value)}/></label>
+  const [path,setPath]=useState(''),[choosing,setChoosing]=useState(false); const {error,busy,run}=useAction();
+  const close=()=>{if(!busy)onClose();};
+  const choose=()=>void run(async()=>{setChoosing(true);try{const result=await api<{path:string|null;cancelled:boolean}>('/roots/choose-folder',{});if(!result.cancelled&&result.path)setPath(result.path);}finally{setChoosing(false);}});
+  return <Modal title="添加照片目录" description="选择本机文件夹，只读取此目录及其子目录；添加后请手动扫描。" onClose={close}><form onSubmit={e=>{e.preventDefault();if(!path||busy)return;void run(async()=>{await api('/roots',{path});await onSaved();onClose();});}}>
+    <button className="folder-picker button secondary" type="button" disabled={busy} onClick={choose}><FolderOpen size={22}/><span>{choosing?'请在系统窗口中选择文件夹…':path?'重新选择文件夹':'选择文件夹'}</span></button>
+    {path?<div className="chosen-folder" role="status"><span>已选择目录</span><code>{path}</code></div>:<p className="muted-note">点击上方按钮，在 Windows 文件夹选择窗口中选择要挂载的照片目录。</p>}
     <p className="form-note"><ShieldCheck size={14}/>原始照片只读，索引与缓存保存到独立应用数据目录。</p>{error&&<p className="form-error" role="alert">{error}</p>}
-    <div className="modal-footer"><button className="button secondary" type="button" onClick={onClose}>取消</button><button className="button primary" disabled={busy} type="submit">{busy?'正在添加…':'添加目录'}</button></div>
+    <div className="modal-footer"><button className="button secondary" type="button" disabled={busy} onClick={close}>取消</button><button className="button primary" disabled={busy||!path} type="submit">{busy&&!choosing?'正在添加…':'添加目录'}</button></div>
   </form></Modal>;
 }
 export function ClassifyForm({photos,overview,onClose,onSaved}:{photos:Photo[];overview:Overview;onClose:()=>void;onSaved:()=>Promise<void>}) {
