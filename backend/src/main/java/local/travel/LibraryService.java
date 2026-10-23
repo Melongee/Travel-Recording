@@ -134,19 +134,32 @@ public class LibraryService {
         if (fresh) categories.insert(c); else categories.updateById(c); return c;
     }
     public record Classification(@NotEmpty @Size(max=1000) List<@NotBlank String> photoIds,String placeId,@NotNull @Size(max=100) List<@NotBlank String> categoryIds) {}
+    public record PlacePhotos(@NotEmpty @Size(max=1000) List<@NotBlank String> photoIds,@NotNull @Size(max=100) List<@NotBlank String> categoryIds) {}
+    @Transactional
+    public void addPhotosToPlace(String placeId,PlacePhotos input) {
+        saveClassification(new Classification(input.photoIds,placeId,input.categoryIds),true);
+    }
     @Transactional
     public void classify(Classification input) {
+        saveClassification(input,false);
+    }
+    private void saveClassification(Classification input,boolean append) {
         Set<String> photoIds=new LinkedHashSet<>(input.photoIds), categoryIds=new LinkedHashSet<>(input.categoryIds);
         if (input.placeId!=null && places.selectById(input.placeId)==null) throw new IllegalArgumentException("地点不存在");
-        for (String id:photoIds) if(Boolean.TRUE.equals(requirePhoto(id).excluded)) throw new IllegalArgumentException("请先恢复已排除的照片，再调整归类");
+        Map<String,Photo> selected=new LinkedHashMap<>();
+        for (String id:photoIds) {
+            Photo photo=requirePhoto(id);
+            if(Boolean.TRUE.equals(photo.excluded)) throw new IllegalArgumentException("请先恢复已排除的照片，再调整归类");
+            selected.put(id,photo);
+        }
         for (String id:categoryIds) {
             Category c=categories.selectById(id);
             if (c==null || input.placeId==null || !input.placeId.equals(c.placeId)) throw new IllegalArgumentException("类别必须属于目标地点");
         }
         for (String id:photoIds) {
-            jdbc.update("DELETE FROM photo_categories WHERE photo_id=?",id);
+            if(!append||!Objects.equals(selected.get(id).placeId,input.placeId))jdbc.update("DELETE FROM photo_categories WHERE photo_id=?",id);
             jdbc.update("UPDATE photos SET place_id=? WHERE id=?",input.placeId,id);
-            for (String category:categoryIds) jdbc.update("INSERT INTO photo_categories(photo_id,category_id) VALUES(?,?)",id,category);
+            for (String category:categoryIds) jdbc.update(append?"INSERT OR IGNORE INTO photo_categories(photo_id,category_id) VALUES(?,?)":"INSERT INTO photo_categories(photo_id,category_id) VALUES(?,?)",id,category);
         }
     }
     public record Exclusion(@NotEmpty @Size(max=1000) List<@NotBlank String> photoIds,@NotNull Boolean excluded) {}

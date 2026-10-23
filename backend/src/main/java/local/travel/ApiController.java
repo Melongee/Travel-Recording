@@ -33,6 +33,7 @@ public class ApiController {
     @GetMapping("/photos/{id}") Object photo(@PathVariable String id) { return library.detail(id); }
     @PostMapping("/photos/{id}/reveal") Object reveal(@PathVariable String id) throws IOException { return files.reveal(id); }
     @PostMapping("/photos/classify") Object classify(@Valid @RequestBody LibraryService.Classification input) { library.classify(input); return Map.of("saved",true); }
+    @PostMapping("/places/{id}/photos") Object addPhotos(@PathVariable String id,@Valid @RequestBody LibraryService.PlacePhotos input) { library.addPhotosToPlace(id,input);return Map.of("saved",true); }
     @PostMapping("/photos/exclusion") Object exclusion(@Valid @RequestBody LibraryService.Exclusion input) { library.setExcluded(input); return Map.of("saved",true); }
     @GetMapping("/photos/{id}/{kind:thumbnail|preview|original}") ResponseEntity<Resource> image(@PathVariable String id,@PathVariable String kind) throws IOException {
         var photo=library.requirePhoto(id);
