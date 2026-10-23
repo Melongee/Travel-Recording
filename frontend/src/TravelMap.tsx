@@ -26,12 +26,12 @@ interface TravelMapProps {
   compact?: boolean;
 }
 
-type ProvinceProperties = { name?: string; fullname?: string; adcode?: string | number; id?: string | number };
+type ProvinceProperties = { name?: string; fullname?: string; adcode?: string | number; id?: string | number; center?: [number,number] };
 type ProvinceFeature = Feature<Geometry, ProvinceProperties>;
 type ProvinceCollection = FeatureCollection<Geometry, ProvinceProperties>;
 
-// 地图保持完整边界数据；全国初始视野以大陆、港澳台及海南为中心。
-const nationalBounds = L.latLngBounds([[17.5, 73], [54, 135.5]]);
+// 初始视野包含资源中的南部岛屿，不裁掉海南省的南部几何。
+const nationalBounds = L.latLngBounds([[3, 73], [54, 135.5]]);
 
 function provinceName(name: string): string {
   return name.replace(/特别行政区$|维吾尔自治区$|壮族自治区$|回族自治区$|自治区$|省$|市$/g, '');
@@ -63,9 +63,12 @@ function provinceTooltip(name: string, places: Place[], photos: Photo[]): string
 function getProvinceBounds(feature: ProvinceFeature): L.LatLngBounds {
   const layer = L.geoJSON(feature);
   const bounds = layer.getBounds();
-  // 海南附属海域不影响岛屿视野，全部边界仍留在原始图层内。
-  if (featureName(feature) === '海南') return L.latLngBounds([[17.8, 108.4], [20.5, 111.4]]);
   return bounds;
+}
+
+function provinceAnchor(feature:ProvinceFeature):L.LatLng {
+  const center=feature.properties.center;
+  return center?L.latLng(center[1],center[0]):getProvinceBounds(feature).getCenter();
 }
 
 function fitProvince(map:L.Map,feature:ProvinceFeature,compact:boolean) {
@@ -185,7 +188,7 @@ export default function TravelMap(props: TravelMapProps) {
         const name = featureName(feature as ProvinceFeature);
         const active = provinceName(latestRef.current.province) === name;
         const visited = latestRef.current.places.some((place) => provinceName(place.province) === name);
-        return { color: active ? '#7e9d8a' : '#fafbf8', weight: active ? 1.5 : 1.1, fillColor: active ? '#adc6af' : visited ? '#cedbc9' : '#e1e5d9', fillOpacity: onlineRef.current?.12:1 };
+        return { color: active ? '#527e69' : '#9fb3a7', weight: active ? 1.8 : 1, fillColor: active ? '#d2e2ce' : visited ? '#dce8d5' : '#f3f1e7', fillOpacity: onlineRef.current?.12:1 };
       },
       onEachFeature: (feature, featureLayer) => {
         const name = featureName(feature);
@@ -290,7 +293,7 @@ export default function TravelMap(props: TravelMapProps) {
           const summary = getProvinceSummary(name, places, photos);
           return summary.placeCount ? [{
             name,
-            point: map.latLngToLayerPoint(getProvinceBounds(feature).getCenter()),
+            point: map.latLngToLayerPoint(provinceAnchor(feature)),
             width: name.length * 11 + 48,
           }] : [];
         }) : [];
@@ -301,7 +304,7 @@ export default function TravelMap(props: TravelMapProps) {
           const showFootprint = overview && summary.placeCount > 0;
           if (!showFootprint && ['北京', '天津', '上海', '香港', '澳门', '台湾'].includes(name)) continue;
           if (province && (name !== selectedProvince||!pickMode)) continue;
-          const center = getProvinceBounds(feature).getCenter();
+          const center = provinceAnchor(feature);
           if (showFootprint) {
             const width = name.length * 11 + 48;
             const accessibleName = `${name}，${summary.placeCount} 个旅行地点，${summary.photoCount} 张照片，查看省内地点`;
@@ -413,7 +416,7 @@ export default function TravelMap(props: TravelMapProps) {
       {onlineError&&<div className="map-online-error" role="status">{onlineError}</div>}
       {!pickMode&&province&&<div className="map-city-status" role="status">{cityBoundaries.status==='loading'?'正在读取本地市界…':cityBoundaries.status==='error'?<>市界未能加载，省份和地点仍可浏览。<button type="button" onClick={cityBoundaries.retry}>重试</button></>:cityBoundaries.empty?'当前资源未提供该区域的下级市界':city?'点击省份名称返回全省，或选择其他市界':'点击市界放大 · 仅用于地图浏览'}</div>}
       {!compact && <div className="map-legend"><span className="map-legend-visited" />留下回忆的省份<span className="map-legend-rest" />待出发{!province && !pickMode && places.length > 0 && <em>数字为旅行地点数</em>}</div>}
-      <div className="map-source-note">{online&&<><a href="https://www.tianditu.gov.cn/" target="_blank" rel="noreferrer">© 天地图</a> · 在线底图 / </>}Natural Earth · 基础省界演示{!pickMode&&province?' · cn-atlas/CTAmap 市界示意':''}</div>
+      <div className="map-source-note">{online&&<><a href="https://www.tianditu.gov.cn/" target="_blank" rel="noreferrer">© 天地图</a> · 在线底图 / </>}cn-atlas / CTAmap 2023 · 区域示意</div>
       {pickMode && loadState === 'ready' && <div className="map-pick-tip"><MapPin size={13} />点击地图，选择地点位置</div>}
       {loadState !== 'ready' && <div className="map-status" role={loadState === 'error' ? 'alert' : 'status'}>
         <MapPin size={24} />
