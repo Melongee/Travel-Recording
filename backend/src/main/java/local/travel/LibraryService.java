@@ -26,6 +26,10 @@ public class LibraryService {
         return result;
     }
     public void deleteCategory(String id) { categories.deleteById(id); }
+    List<Photo> photosForRelocation(String base) {
+        Path root=Path.of(base);
+        return photos.selectList(new QueryWrapper<Photo>().orderByAsc("path","id")).stream().filter(photo->Path.of(photo.normalizedPath).startsWith(root)).toList();
+    }
     public Path thumbnail(Photo p) { return paths.image(p.id,p.version,false); }
     Photo requirePhoto(String id) {
         Photo p=photos.selectById(id); if (p==null) throw new NoSuchElementException("照片不存在"); return p;
