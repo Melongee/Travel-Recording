@@ -1,9 +1,10 @@
 import {useState} from 'react';
-import {Check,Plus,ShieldCheck,Tag,Trash2,Pencil,FolderOpen} from 'lucide-react';
-import type {Overview,Photo,Place} from '../model';
+import {Plus,ShieldCheck,Tag,Trash2,Pencil,FolderOpen} from 'lucide-react';
+import type {Overview,Place} from '../model';
 import Modal from './Modal';
 import {api} from '../api';
 export {default as PlaceForm} from './PlaceForm';
+export {default as ClassifyForm} from './ClassifyForm';
 
 function useAction() {
   const [error,setError]=useState(''),[busy,setBusy]=useState(false);
@@ -20,18 +21,6 @@ export function RootForm({onClose,onSaved}:{onClose:()=>void;onSaved:()=>Promise
     <p className="form-note"><ShieldCheck size={14}/>原始照片只读，索引与缓存保存到独立应用数据目录。</p>{error&&<p className="form-error" role="alert">{error}</p>}
     <div className="modal-footer"><button className="button secondary" type="button" disabled={busy} onClick={close}>取消</button><button className="button primary" disabled={busy||!path} type="submit">{busy&&!choosing?'正在添加…':'添加目录'}</button></div>
   </form></Modal>;
-}
-export function ClassifyForm({photos,overview,onClose,onSaved}:{photos:Photo[];overview:Overview;onClose:()=>void;onSaved:()=>Promise<void>}) {
-  const [place,setPlace]=useState(photos.length===1?photos[0].placeId||'':overview.places[0]?.id||''),[categories,setCategories]=useState<string[]>(photos.length===1?photos[0].categoryIds:[]);
-  const {error,busy,run}=useAction();
-  const changing=photos.filter(p=>p.placeId&&p.placeId!==place).length;
-  return <Modal title={`整理 ${photos.length} 张照片`} description="每张照片属于一个地点，可选择该地点下多个类别。" onClose={onClose}>
-    <div className="selected-preview">{photos.filter(p=>p.available).slice(0,5).map(p=><img key={p.id} src={p.src} alt={p.fileName}/>)}{photos.length>5&&<span>+{photos.length-5}</span>}</div>
-    <label className="form-field">旅行地点<select aria-label="归类地点" value={place} onChange={e=>{setPlace(e.target.value);setCategories([]);}}><option value="">未分类（取消地点关联）</option>{overview.places.map(p=><option key={p.id} value={p.id}>{p.name} · {p.province}</option>)}</select></label>
-    {place&&<><div className="form-section-label">照片类别<span>可多选</span></div><div className="category-options">{overview.categories.filter(c=>c.placeId===place).map(c=><button className={`category-option ${categories.includes(c.id)?'selected':''}`} aria-pressed={categories.includes(c.id)} key={c.id} onClick={()=>setCategories(old=>old.includes(c.id)?old.filter(id=>id!==c.id):[...old,c.id])}><span>{categories.includes(c.id)&&<Check size={13}/>}</span>{c.name}</button>)}</div></>}
-    {changing>0&&<div className="inline-notice">{changing} 张照片会更换地点，旧地点类别将清除。确认后保存。</div>}<p className="form-note"><ShieldCheck size={13}/>只保存整理关系，不改动原图。</p>{error&&<p className="form-error" role="alert">{error}</p>}
-    <div className="modal-footer"><button className="button secondary" onClick={onClose}>取消</button><button className="button primary" disabled={busy} onClick={()=>void run(async()=>{await api('/photos/classify',{photoIds:photos.map(p=>p.id),placeId:place||null,categoryIds:place?categories:[]});await onSaved();onClose();})}>{busy?'保存中…':'确认归类'}</button></div>
-  </Modal>;
 }
 export function CategoryManager({place,overview,onClose,onSaved}:{place:Place;overview:Overview;onClose:()=>void;onSaved:()=>Promise<void>}) {
   const [name,setName]=useState(''),[editing,setEditing]=useState(''),[remove,setRemove]=useState(''); const {error,busy,run}=useAction();
