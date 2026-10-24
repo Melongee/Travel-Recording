@@ -35,16 +35,22 @@ class DatabaseMigrationsTest {
             }
             DatabaseMigrations.migrate(flyway(db,"2"),db,paths);
             try(var files=Files.list(paths.data.resolve("backups"))){assertEquals(1,files.count());}
+            DatabaseMigrations.migrate(flyway(db,"3"),db,paths);
+            try(var files=Files.list(paths.data.resolve("backups"))) {
+                var v2=files.filter(p->p.getFileName().toString().startsWith("before-upgrade-v2-")).findFirst().orElseThrow();
+                try(Connection c=BackupService.readOnly(v2);Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT place_id,excluded FROM photos WHERE id='photo'")){assertTrue(r.next());assertEquals("place",r.getString(1));assertEquals(0,r.getInt(2));}
+            }
+            try(Connection c=db.getConnection();Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT count(*) FROM home_background")){r.next();assertEquals(0,r.getInt(1));}
             Path scripts=Files.createDirectories(fixtures.resolve("failed-migration"));
-            Files.writeString(scripts.resolve("V3__intentional_failure.sql"),"ALTER TABLE photos ADD COLUMN rollback_probe TEXT; INSERT INTO absent_table VALUES(1);");
-            var broken=Flyway.configure().dataSource(db).locations("classpath:db/migration","filesystem:"+scripts).target("3").load();
+            Files.writeString(scripts.resolve("V4__intentional_failure.sql"),"ALTER TABLE photos ADD COLUMN rollback_probe TEXT; INSERT INTO absent_table VALUES(1);");
+            var broken=Flyway.configure().dataSource(db).locations("classpath:db/migration","filesystem:"+scripts).target("4").load();
             var failure=assertThrows(IllegalStateException.class,()->DatabaseMigrations.migrate(broken,db,paths));
             assertTrue(failure.getMessage().contains("升级前一致性快照"));
             try(Connection c=db.getConnection();Statement s=c.createStatement()) {
                 try(ResultSet r=s.executeQuery("SELECT count(*) FROM photos WHERE id='photo' AND excluded=0")){r.next();assertEquals(1,r.getInt(1));}
                 try(ResultSet r=s.executeQuery("SELECT count(*) FROM pragma_table_info('photos') WHERE name='rollback_probe'")){r.next();assertEquals(0,r.getInt(1));}
             }
-            try(var files=Files.list(paths.data.resolve("backups"))){assertEquals(2,files.count());}
+            try(var files=Files.list(paths.data.resolve("backups"))){assertEquals(3,files.count());}
         }
     }
     @Test void missingSnapshotPreventsUpgrade() throws Exception {

@@ -94,7 +94,7 @@ public class BackupService {
             if (upload==null || Instant.now().isAfter(upload.expires)) throw new IllegalArgumentException("恢复预览已过期，请重新选择备份");
             if (!sha256(upload.database).equalsIgnoreCase(upload.manifest.databaseSha256)) throw new IllegalArgumentException("预览后的备份发生变化，请重新选择");
             validateDatabase(upload.database,upload.manifest);
-            // V1 archives are validated against the bundled V1 schema before any local migration runs.
+            // Legacy archives are validated against their bundled schema before any local migration runs.
             if(upload.manifest.schemaVersion<DatabaseMigrations.CURRENT) DatabaseMigrations.forFile(upload.database,DatabaseMigrations.CURRENT).migrate();
             // Only known-schema files reach this point. Read permission is not inherited from an imported path.
             SQLiteConfig config=new SQLiteConfig(); config.enforceForeignKeys(true);
@@ -150,6 +150,16 @@ public class BackupService {
             }
             try (Statement s=candidate.createStatement(); ResultSet r=s.executeQuery("SELECT count(*) FROM photo_categories pc JOIN photos p ON p.id=pc.photo_id JOIN categories c ON c.id=pc.category_id WHERE p.place_id IS NOT c.place_id")) {
                 if(r.next() && r.getLong(1)!=0) throw new IllegalArgumentException("备份存在跨地点类别关联");
+            }
+            if(manifest.schemaVersion>=3)try(Statement s=candidate.createStatement();ResultSet r=s.executeQuery("SELECT * FROM home_background")) {
+                int rows=0;
+                while(r.next()) {
+                    if(++rows>1||r.getInt("id")!=1)throw new IllegalArgumentException("备份背景设置无效");
+                    var settings=HomeBackgroundService.settings(r);
+                    // A deleted photo may leave a null reference. Do not access imported source paths here.
+                    String mode=settings.mode().equals("photo")&&settings.photoId()==null?"none":settings.mode();
+                    HomeBackgroundService.validate(new HomeBackgroundService.Input(mode,settings.photoId(),settings.opacity(),settings.zoom(),settings.x(),settings.y()));
+                }
             }
             return rootPaths.values().stream().map(Path::toString).sorted().toList();
         }

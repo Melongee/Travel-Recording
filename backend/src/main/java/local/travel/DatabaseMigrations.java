@@ -6,7 +6,7 @@ import org.flywaydb.core.Flyway;
 
 /** Snapshot an existing library before applying local, versioned migrations. */
 final class DatabaseMigrations {
-    static final int CURRENT=2;
+    static final int CURRENT=3;
     static void migrate(Flyway flyway,LibraryDatabase database,AppPaths paths) {
         Path snapshot=null;
         try {

@@ -28,9 +28,10 @@ class BackupIntegrationTest {
     @Autowired ScanService scans;
     @Autowired JdbcTemplate jdbc;
     @Autowired LibraryMaintenance maintenance;
+    @Autowired HomeBackgroundService backgrounds;
     @TempDir(factory=ProjectTempDirFactory.class) Path fixtures;
     BackupService.Inspection inspect(Path zip) throws Exception {try(var input=Files.newInputStream(zip)){return backups.inspect(input);}}
-    void clearTestLibrary(){for(String table:List.of("photo_categories","photos","categories","places","photo_roots"))jdbc.update("DELETE FROM "+table);}
+    void clearTestLibrary(){for(String table:List.of("home_background","photo_categories","photos","categories","places","photo_roots"))jdbc.update("DELETE FROM "+table);}
     @org.junit.jupiter.api.BeforeEach void resetIndependentLibrary(){clearTestLibrary();}
     @Test void walSnapshotRestoresClassificationAndRequiresExplicitRootAccess() throws Exception {
         var image=new BufferedImage(30,20,BufferedImage.TYPE_INT_RGB);
@@ -43,6 +44,7 @@ class BackupIntegrationTest {
         var a=library.saveCategory(null,new LibraryService.CategoryInput(place.id,"A"));
         var b=library.saveCategory(null,new LibraryService.CategoryInput(place.id,"B"));
         library.classify(new LibraryService.Classification(List.of(photo.id()),place.id,List.of(a.id,b.id)));
+        var background=backgrounds.save(new HomeBackgroundService.Input("photo",photo.id(),.68,2.4,.2,.8));
         Path archive=backups.export();
         try(ZipFile zip=new ZipFile(archive.toFile())){assertEquals(Set.of("manifest.json","library.db"),new HashSet<>(zip.stream().map(ZipEntry::getName).toList()));}
         var inspection=inspect(archive);
@@ -55,11 +57,13 @@ class BackupIntegrationTest {
         var restored=library.detail(photo.id());
         assertEquals(place.id,restored.placeId());assertEquals(Set.of(a.id,b.id),new HashSet<>(restored.categoryIds()));
         assertFalse(restored.available());assertEquals("unverified",restored.availability());
+        assertEquals(background.settings(),backgrounds.read().settings());assertNull(backgrounds.read().src());assertNotNull(backgrounds.read().warning());
         assertThrows(IOException.class,()->library.source(library.requirePhoto(photo.id())));
         assertFalse(library.allRoots().getFirst().enabled);
         assertEquals("needs_confirmation",library.allRoots().getFirst().status);
         scans.confirmRoot(library.allRoots().getFirst().id);
         assertTrue(library.detail(photo.id()).available());
+        assertEquals(background,backgrounds.read());
         assertEquals(originalHash,BackupService.sha256(file));
         assertThrows(LibraryMaintenance.Busy.class,()->backups.restore(inspection.token(),true));
         // A hostile extra ZIP path is rejected without touching either the library or the target path.
@@ -85,10 +89,12 @@ class BackupIntegrationTest {
         assertThrows(IllegalArgumentException.class,()->inspect(hostile));
         assertEquals(2,library.detail(photo.id()).categoryIds().size());
     }
-    @Test void validatedV1ArchiveUpgradesBeforeEmptyLibraryRestore() throws Exception {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints={1,2})
+    void validatedLegacyArchiveUpgradesBeforeEmptyLibraryRestore(int version) throws Exception {
         Path file=fixtures.resolve("旧版照片.png");ImageIO.write(new BufferedImage(30,20,BufferedImage.TYPE_INT_RGB),"png",file.toFile());
         String root=UUID.randomUUID().toString(),photo=UUID.randomUUID().toString(),place=UUID.randomUUID().toString(),category=UUID.randomUUID().toString();
-        Path oldDatabase=fixtures.resolve("old-v1.db");DatabaseMigrations.forFile(oldDatabase,1).migrate();
+        Path oldDatabase=fixtures.resolve("old-v"+version+".db");DatabaseMigrations.forFile(oldDatabase,version).migrate();
         BackupService.Counts counts;
         try(Connection c=DriverManager.getConnection("jdbc:sqlite:"+oldDatabase)) {
             try(PreparedStatement s=c.prepareStatement("INSERT INTO photo_roots(id,path,normalized_path) VALUES(?,?,?)")){s.setString(1,root);s.setString(2,fixtures.toString());s.setString(3,ScanService.normalized(fixtures));s.executeUpdate();}
@@ -100,7 +106,7 @@ class BackupIntegrationTest {
             try(PreparedStatement s=c.prepareStatement("INSERT INTO photo_categories VALUES(?,?)")){s.setString(1,photo);s.setString(2,category);s.executeUpdate();}
             counts=BackupService.counts(c);
         }
-        var manifest=new BackupService.Manifest(BackupService.FORMAT,1,"0.1.0",1,java.time.Instant.now().toString(),BackupService.sha256(oldDatabase),counts);
+        var manifest=new BackupService.Manifest(BackupService.FORMAT,1,"0.1.0",version,java.time.Instant.now().toString(),BackupService.sha256(oldDatabase),counts);
         Path archive=fixtures.resolve("old-v1.zip");
         try(ZipOutputStream out=new ZipOutputStream(Files.newOutputStream(archive))) {
             out.putNextEntry(new ZipEntry("manifest.json"));out.write(JsonMapper.builder().build().writeValueAsBytes(manifest));out.closeEntry();
@@ -109,7 +115,8 @@ class BackupIntegrationTest {
         var inspection=inspect(archive);backups.restore(inspection.token(),true);
         assertEquals(place,library.detail(photo).placeId());assertEquals(List.of(category),library.detail(photo).categoryIds());
         assertEquals(0L,library.overview().get("excludedCount"));assertEquals("unverified",library.detail(photo).availability());
-        assertEquals("2",jdbc.queryForObject("SELECT max(version) FROM flyway_schema_history WHERE success=1",String.class));
+        assertEquals(Integer.toString(DatabaseMigrations.CURRENT),jdbc.queryForObject("SELECT max(version) FROM flyway_schema_history WHERE success=1",String.class));
+        assertEquals(HomeBackgroundService.DEFAULT,backgrounds.read().settings());
         assertThrows(IOException.class,()->library.source(library.requirePhoto(photo)));
         assertEquals(BackupService.sha256(oldDatabase),manifest.databaseSha256());
     }
