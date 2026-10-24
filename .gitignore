@@ -18,3 +18,25 @@ artifacts/
 .idea/
 .vscode/
 Thumbs.db
+.DS_Store
+**/__pycache__/
+*.py[cod]
+
+# Local design material and internal development records are not part of the application.
+/demo/
+/figs/
+/AGENTS.md
+/docs/正式开发交接说明.md
+/docs/新对话启动提示词.md
+/docs/阶段1实施记录.md
+/docs/MVP验收记录.md
+/docs/个人地图相册需求文档PRDv1.0.md
+/docs/个人旅行地图相册技术方案与迭代开发计划V1.0.md
+/docs/地图服务与离线验证.md
+/.codex/
+/.agents/
+/.aws/
+
+# Only the documented configuration template belongs in Git.
+/config/*
+!/config/application-local.properties.example
