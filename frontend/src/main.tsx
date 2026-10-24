@@ -6,6 +6,7 @@ import './styles.css';
 import './viewer.css';
 import './real.css';
 import './atlas.css';
+import './navigation.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><App /></React.StrictMode>,

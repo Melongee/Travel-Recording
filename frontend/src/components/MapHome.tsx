@@ -1,4 +1,3 @@
-import type {ReactNode} from 'react';
 import {Image,MapPin,Plus} from 'lucide-react';
 import TravelMap from '../TravelMap';
 import type {Overview} from '../model';
@@ -10,14 +9,12 @@ interface Props {
   onPlaceClick:(id:string)=>void;
   onCreatePlace:()=>void;
   onOrganize:()=>void;
-  recent:ReactNode;
 }
 
-export default function MapHome({overview,province,onProvinceChange,onPlaceClick,onCreatePlace,onOrganize,recent}:Props) {
+export default function MapHome({overview,province,onProvinceChange,onPlaceClick,onCreatePlace,onOrganize}:Props) {
   const places=overview.places.filter(place=>!province||place.province===province);
   const provinceCount=new Set(overview.places.map(place=>place.province)).size;
-  return <>
-    <section className="atlas-scene" aria-label="我的旅行足迹">
+  return <section className="atlas-scene" aria-label="我的旅行足迹">
       <div className="atlas-map"><TravelMap scenic places={overview.places} photos={[]} province={province} onProvinceChange={onProvinceChange} onPlaceClick={onPlaceClick}/></div>
       <section className="atlas-heading">
         <div className="eyebrow">MY TRAVEL ATLAS</div>
@@ -34,7 +31,5 @@ export default function MapHome({overview,province,onProvinceChange,onPlaceClick
           <span className="atlas-place-cover">{place.coverSrc?<img src={place.coverSrc} alt=""/>:<span className="atlas-empty-cover"><MapPin size={22}/></span>}<small>{place.photoCount}</small></span><strong>{place.name}</strong>
         </button>)}</div>:<div className="atlas-place-empty"><MapPin size={24}/><p>这里的故事还未开始</p><button className="text-button" onClick={onCreatePlace}>新增旅行地点</button></div>}
       </aside>
-    </section>
-    {recent}
-  </>;
+    </section>;
 }

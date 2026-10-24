@@ -1,0 +1,53 @@
+.app-navigation { position: fixed; z-index: 40; top: 18px; left: 30px; right: 30px; height: 48px; display: flex; align-items: center; pointer-events: none; }
+.app-brand { display: inline-flex; align-items: center; gap: 11px; padding: 0; color: #173f46; text-align: left; pointer-events: auto; }
+.app-brand-symbol { width: 42px; height: 46px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #376f70, #23574e); border-radius: 13px; box-shadow: 0 4px 12px #234c4a12; }
+.app-brand strong { display: block; font-size: 27px; font-weight: 700; letter-spacing: 3px; line-height: 1.2; text-shadow: 0 1px 8px #f8fbf988; }
+.app-brand strong > span { color: #79a28f; margin-left: 2px; letter-spacing: 0; }
+.app-brand small { display: block; margin-top: 4px; font-size: 8px; letter-spacing: 3.4px; color: #6f8e87; }
+.app-nav { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 5px; max-width: calc(100vw - 400px); border: 1px solid #ffffff68; border-radius: 19px; background: #dcebe2ad; box-shadow: 0 5px 22px #254e4b10; backdrop-filter: blur(18px) saturate(115%); pointer-events: auto; }
+.app-nav-item { display: inline-flex; justify-content: center; align-items: center; gap: 9px; min-height: 39px; padding: 9px 16px; border-radius: 13px; font-size: 13px; font-weight: 550; color: #41675f; white-space: nowrap; }
+.app-nav-item:hover { background: #f0f7f259; color: #214e45; }
+.app-nav-item small { min-width: 21px; padding: 2px 5px; border-radius: 6px; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; color: #54786b; background: #3f746c12; }
+.app-nav-item[aria-current=page] { background: #285b53ed; color: #fff; box-shadow: 0 2px 9px #244f4920; }
+.app-nav-item[aria-current=page] small { color: #eaf5ed; background: #ffffff1f; }
+.app-settings { position: fixed; bottom: 24px; left: 26px; display: grid; place-items: center; width: 43px; height: 43px; border: 1px solid #ffffff9c; border-radius: 14px; color: #315e56; background: #e6f0e9c7; box-shadow: 0 4px 18px #254e4b12; backdrop-filter: blur(14px); pointer-events: auto; }
+.app-settings:hover { color: #214c42; background: #dcebe1ed; }
+.app-settings[aria-current=page] { background: #285b53ed; color: #fff; }
+.app-shell .main-area { width: 100%; margin-left: 0; }
+.app-shell:not(.atlas-home) .content-wrap { padding-top: 116px; padding-bottom: 92px; }
+.atlas-home .main-area { overflow: hidden; }
+.atlas-heading { padding-top: 116px; }
+.background-trigger { top: 24px; }
+.travel-map-scenic .travel-map-topline { top: 320px; }
+.travel-map-scenic .map-legend { left: 88px; max-width: calc(100% - 170px); }
+.about-library { float: right; margin-top: -31px; }
+
+@media (max-width: 1000px) {
+  .app-navigation { top: 16px; left: 22px; right: 22px; }
+  .app-nav { top: 65px; max-width: calc(100vw - 40px); }
+  .app-shell:not(.atlas-home) .content-wrap { padding-top: 163px; }
+  .atlas-heading { padding-top: 160px; }
+  .atlas-map { top: 100px; }
+  .atlas-actions { top: 270px; right: 22px; }
+  .travel-map-scenic .travel-map-topline, .travel-map-scenic .map-mode-control { top: 240px; }
+}
+@media (max-width: 600px) {
+  .app-navigation { left: 18px; right: 18px; }
+  .app-brand-symbol { width: 35px; height: 39px; border-radius: 11px; }
+  .app-brand-symbol > svg { width: 22px; }
+  .app-brand { gap: 8px; }
+  .app-brand strong { font-size: 23px; }
+  .app-brand small { font-size: 6px; letter-spacing: 2.7px; }
+  .app-nav { width: max-content; max-width: calc(100vw - 28px); gap: 2px; padding: 4px; border-radius: 17px; }
+  .app-nav-item { gap: 6px; min-height: 37px; padding: 8px 11px; font-size: 12px; border-radius: 12px; }
+  .app-nav-item small { font-size: 9px; min-width: 19px; padding: 2px 4px; }
+  .app-settings { left: 18px; bottom: 20px; width: 41px; height: 41px; }
+  .atlas-heading { padding-top: 158px; }
+  .atlas-actions { top: 334px; right: 18px; }
+  .atlas-map { top: 200px; }
+  .travel-map-scenic .travel-map-topline, .travel-map-scenic .map-mode-control { top: 180px; }
+  .travel-map-scenic .map-legend { left: 78px; max-width: calc(100% - 145px); }
+}
+@media (max-width: 480px) {
+  .app-nav-icon { display: none; }
+}
