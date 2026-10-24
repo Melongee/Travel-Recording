@@ -1,11 +1,11 @@
 import {useEffect,useId,useRef} from 'react';
-import type {ReactNode} from 'react';
+import type {ReactNode,RefObject} from 'react';
 import {X} from 'lucide-react';
-export default function Modal({title,description,children,onClose,wide=false,className=''}: {title:string;description?:string;children:ReactNode;onClose:()=>void;wide?:boolean;className?:string}) {
+export default function Modal({title,description,children,onClose,wide=false,className='',initialFocusRef}: {title:string;description?:string;children:ReactNode;onClose:()=>void;wide?:boolean;className?:string;initialFocusRef?:RefObject<HTMLElement|null>}) {
   const heading=useId(), ref=useRef<HTMLDivElement>(null), closeRef=useRef(onClose); closeRef.current=onClose;
   useEffect(()=>{
     const previous=document.activeElement as HTMLElement|null, overflow=document.body.style.overflow;
-    document.body.style.overflow='hidden'; ref.current?.querySelector<HTMLElement>('input,select,button')?.focus();
+    document.body.style.overflow='hidden'; (initialFocusRef?.current||ref.current?.querySelector<HTMLElement>('input,select,button'))?.focus();
     const keyboard=(event:KeyboardEvent)=>{
       const dialogs=document.querySelectorAll('[role="dialog"]'); if(dialogs[dialogs.length-1]!==ref.current)return;
       if(event.key==='Escape'){event.preventDefault();closeRef.current();}
