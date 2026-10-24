@@ -1,0 +1,127 @@
+/* The homepage uses one continuous photo-and-map canvas. Picking maps keep their existing layout. */
+.app-shell .main-area { position: relative; isolation: isolate; }
+.page-backdrop { position: absolute; inset: 0 0 auto; height: min(820px, 85vh); z-index: -1; overflow: hidden; pointer-events: none; mask-image: linear-gradient(#000 8%, #000e 28%, #0003 62%, transparent 100%); }
+.page-backdrop > img { width: 100%; height: 100%; object-fit: cover; }
+.page-backdrop::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #f8fbf9ed, #f8fbf98c 35%, #f8fbf90a 74%); }
+.background-trigger { position: absolute; top: 18px; right: 28px; z-index: 15; min-height: 34px; border-radius: 9px; font-size: 12px; color: #234e54 !important; background: #ffffffeb !important; }
+.page-nav-toggle { position: fixed; top: 18px; left: 18px; z-index: 35; width: 36px; height: 36px; background: #ffffffeb; border: 1px solid #e0e8e2; border-radius: 8px; }
+
+.atlas-home { color: #173b4a; }
+.atlas-home .sidebar { background: #fdfefdf5; }
+.atlas-home .nav-item { height: 49px; font-size: 14px; }
+.atlas-home .brand { color: #173b4a; }
+.atlas-home .brand-symbol { background: linear-gradient(135deg, #376f70, #23574e); color: #fff; border-radius: 13px; }
+.atlas-home .main-area { background: #e1edf0; }
+.atlas-home .content-wrap { padding: 0; max-width: none; }
+.atlas-home .save-message, .atlas-home .content-wrap > .form-error { position: relative; z-index: 12; margin: 8px 30px; }
+.atlas-scene { position: relative; min-height: 660px; height: 100svh; isolation: isolate; }
+.atlas-map { position: absolute; inset: 0; z-index: 0; }
+.atlas-map > .travel-map-scenic { height: 100%; border: 0; border-radius: 0; background: transparent; }
+.atlas-map .travel-map-canvas { background: transparent; }
+.atlas-heading { position: relative; z-index: 2; width: fit-content; max-width: 75%; padding: 56px 44px 0; pointer-events: none; }
+.atlas-heading .eyebrow { color: #688a98; font-size: 11px; letter-spacing: 4px; margin-bottom: 14px; }
+.atlas-heading h1 { color: #10354a; font-size: clamp(34px, 3.1vw, 54px); font-weight: 650; line-height: 1.22; letter-spacing: 1px; }
+.atlas-summary { display: flex; align-items: center; gap: 16px; width: fit-content; margin-top: 18px; color: #476775; font-size: 12px; line-height: 28px; text-shadow: 0 1px 8px #ffffffb3; }
+.atlas-summary > span { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.atlas-summary > span + span::before { content: ''; width: 1px; height: 12px; align-self: center; background: #829e9b70; margin-right: 12px; }
+.atlas-summary b { color: #164a54; font-size: 23px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.atlas-actions { position: absolute; z-index: 10; top: 175px; right: 30px; display: flex; gap: 12px; }
+.atlas-actions .button { min-height: 41px; border-radius: 9px; padding: 10px 19px; font-size: 13px; }
+.atlas-actions .secondary { background: #fffffff0; color: #24585c; }
+.atlas-places { position: absolute; z-index: 10; right: 26px; top: max(390px, 44%); bottom: 166px; max-height: 352px; display: flex; flex-direction: column; width: 226px; padding: 6px 10px; border: 1px solid #ffffffa3; border-radius: 17px; background: #fffffff0; box-shadow: 0 8px 28px #264b5d12; backdrop-filter: blur(12px); }
+.atlas-place-items { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: #c4d6d5 transparent; overscroll-behavior: contain; padding: 2px; }
+.atlas-place { width: 100%; display: flex; align-items: center; gap: 11px; padding: 10px 2px; text-align: left; border-radius: 8px; }
+.atlas-place + .atlas-place { border-top: 1px solid #d8e6e761; }
+.atlas-place:hover { background: #edf5f2; }
+.atlas-place-cover { width: 46px; height: 46px; flex: 0 0 46px; position: relative; }
+.atlas-place-cover img, .atlas-empty-cover { width: 100%; height: 100%; border-radius: 9px; object-fit: cover; }
+.atlas-empty-cover { display: grid; place-items: center; color: #87a79a; background: linear-gradient(145deg, #e4eff0, #e8efdd); }
+.atlas-place-cover small { position: absolute; top: -3px; right: -3px; min-width: 19px; height: 18px; padding: 0 4px; line-height: 16px; border: 1px solid #fff; border-radius: 6px; color: #fff; background: #255b59; font-size: 10px; text-align: center; }
+.atlas-place strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: 12px; font-weight: 550; color: #204353; }
+.atlas-place-empty { display: grid; justify-items: center; gap: 12px; padding: 20px 0; color: #6b8b89; font-size: 12px; }
+.atlas-home .recent-section { padding: 34px 44px 40px; background: linear-gradient(#e1edf0, #f6f8f4 100px); }
+
+.travel-map-scenic .travel-map-topline { top: 266px; left: 30px; right: 26px; }
+.travel-map-scenic .map-breadcrumb { border-radius: 9px; padding: 10px 12px; font-size: 12px; box-shadow: 0 3px 12px #2949580b; }
+.map-mode-control { position: absolute; top: 236px; right: 26px; z-index: 9; display: inline-flex; gap: 3px; padding: 4px; border: 1px solid #ffffffb3; border-radius: 10px; background: #ffffffdc; box-shadow: 0 3px 14px #244d5910; }
+.map-mode-control button { padding: 8px 12px; border-radius: 7px; color: #6c8589; font-size: 12px; }
+.map-mode-control button[aria-pressed=true] { background: #295f59; color: #fff; }
+.map-mode-control button:not(:disabled):hover { background: #e4efeb; color: #295b4d; }
+.map-mode-control button[aria-pressed=true]:hover { background: #234f4a; color: #fff; }
+.map-road-error { position: absolute; bottom: 120px; left: 30px; z-index: 10; max-width: calc(100% - 110px); padding: 8px 10px; border: 1px solid #e3dcc1; border-radius: 7px; background: #fff9e9f0; color: #89794c; font-size: 11px; }
+.map-road-error button { color: #295b4d; margin-left: 10px; text-decoration: underline; }
+.travel-map-scenic .map-zoom-controls { right: 28px; bottom: 35px; border-radius: 11px; background: #fffffff0; border-color: #ffffffb8; }
+.travel-map-scenic .map-zoom-controls button { width: 38px; height: 38px; color: #315c67; }
+.travel-map-scenic .map-legend { left: 30px; bottom: 28px; padding: 13px 16px; background: #ffffffde; border-radius: 10px; color: #4c6f73; font-size: 11px; box-shadow: 0 2px 15px #3659630a; }
+.travel-map-scenic .map-source-note { right: 28px; bottom: 9px; color: #5f7d82; }
+.travel-map-scenic .map-city-status { bottom: 78px; left: 30px; }
+.travel-map-scenic .map-online-error { bottom: 110px; right: 80px; left: 30px; }
+.travel-map-scenic .province-map-label { color: #56777d; font-size: 11px; letter-spacing: 1px; }
+.province-footprint-photo-label .province-footprint { height: 56px; display: grid; grid-template-columns: 30px 1fr; grid-template-rows: 1fr 1fr; column-gap: 8px; row-gap: 3px; justify-content: start; padding: 5px; border: 2px solid #fff; border-radius: 12px; background: #fffffff0; box-shadow: 0 5px 16px #234d6220; position: relative; }
+.province-footprint-photo-label .province-footprint::after { content: ''; position: absolute; left: calc(50% - 5px); bottom: -7px; width: 10px; height: 10px; background: #fff; transform: rotate(45deg); }
+.travel-map .leaflet-marker-pane .province-footprint-photo-label .province-footprint > img { width: 30px; height: 42px; object-fit: cover; border-radius: 7px; grid-row: 1 / 3; }
+.province-footprint-photo-label .province-footprint-name { font-size: 12px; align-self: end; color: #224b56; }
+.province-footprint-photo-label .province-footprint-count { font-size: 10px; align-self: start; color: #74918e; }
+.province-footprint-photo-label .province-footprint-dot { position: absolute; left: calc(50% - 5px); bottom: -20px; width: 10px; height: 10px; border: 2px solid #fff; background: #4b8f83; box-shadow: 0 2px 5px #2b5d5d30; }
+.province-footprint-photo-label .province-footprint:not(:has(img)) { grid-template-columns: 1fr; justify-items: center; }
+.province-footprint-below .province-footprint::after { bottom: auto; top: -7px; }
+.province-footprint-below .province-footprint-dot { bottom: auto; top: -17px; }
+.travel-map-scenic .province-footprint-label:focus-visible .province-footprint { outline-offset: 4px; }
+.travel-map-scenic.travel-map-online .travel-map-canvas { mask-image: linear-gradient(#000b, #000 170px); }
+
+.background-picker { width: 760px; }
+.background-preview { position: relative; height: 145px; overflow: hidden; border-radius: 12px; background: #dbe9e8; display: grid; place-items: center; color: #76998b; }
+.background-preview > img { width: 100%; height: 100%; object-fit: cover; }
+.background-preview > span { position: absolute; bottom: 0; left: 0; right: 0; padding: 26px 18px 13px; background: linear-gradient(transparent, #153b4ab3); color: #fff; font-size: 18px; font-weight: 600; }
+.background-position { display: flex; align-items: center; gap: 16px; margin: 13px 0; color: #708a84; font-size: 12px; }
+.background-position input { flex: 1; accent-color: #295b4d; }
+.background-picker .search-field { width: 100%; }
+.background-photo-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; max-height: 225px; min-height: 100px; overflow-y: auto; padding: 5px; margin: 12px -5px 4px; scrollbar-width: thin; }
+.background-photo-grid > button { aspect-ratio: 1.3; position: relative; padding: 0; border-radius: 7px; background: #e5ece5; }
+.background-photo-grid img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.background-photo-grid > button[aria-pressed=true] { outline: 3px solid #2b6959; outline-offset: 2px; }
+.background-photo-grid > button > span { position: absolute; top: 5px; right: 5px; background: #2b6959; color: #fff; border-radius: 50%; padding: 2px; }
+.background-photo-grid > p, .background-photo-grid > div { grid-column: 1 / -1; align-self: center; text-align: center; color: #82917d; font-size: 12px; line-height: 1.8; }
+.background-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; color: #819789; font-size: 11px; }
+.background-note { color: #84958a; font-size: 11px; line-height: 1.8; }
+.background-footer { gap: 14px; }
+.background-footer > .text-button:first-child { margin-right: auto; }
+
+@media (max-width: 1250px) {
+  .atlas-heading { padding-left: 30px; }
+  .atlas-places { width: 196px; right: 18px; }
+  .atlas-actions { right: 22px; }
+  .atlas-actions .button { font-size: 11px; padding: 8px 12px; }
+}
+@media (max-width: 760px) {
+  .app-shell:not(.atlas-home) .content-wrap { padding-top: 76px; }
+  .background-trigger { top: 18px; right: 18px; min-height: 34px; font-size: 11px; padding: 7px 11px; }
+  .atlas-scene { min-height: 830px; }
+  .atlas-heading { padding: 76px 22px 0; max-width: 100%; }
+  .atlas-heading h1 { font-size: 34px; }
+  .atlas-heading .eyebrow { font-size: 9px; }
+  .atlas-summary { gap: 10px; margin-top: 14px; font-size: 11px; }
+  .atlas-summary > span + span::before { margin-right: 6px; }
+  .atlas-summary b { font-size: 20px; }
+  .atlas-actions { top: 250px; right: 20px; gap: 8px; }
+  .atlas-actions .button { min-height: 34px; }
+  .atlas-map { top: 140px; }
+  .atlas-places { top: 52%; bottom: auto; right: 14px; width: 158px; padding: 4px 6px; border-radius: 12px; }
+  .atlas-place-items { max-height: 213px; }
+  .atlas-place { gap: 8px; padding: 9px 2px; }
+  .atlas-place-cover { flex-basis: 37px; width: 37px; height: 37px; }
+  .atlas-place strong { font-size: 10px; }
+  .atlas-place-cover small { font-size: 8px; min-width: 16px; height: 16px; line-height: 14px; }
+  .travel-map-scenic .travel-map-topline { top: 160px; left: 17px; right: 17px; }
+  .travel-map-scenic .map-mode-control { top: 160px; right: 17px; }
+  .map-mode-control button { padding: 7px 9px; font-size: 11px; }
+  .travel-map-scenic .map-zoom-controls { right: 17px; }
+  .travel-map-scenic .map-legend { left: 16px; bottom: 29px; padding: 10px; font-size: 9px; flex-wrap: wrap; max-width: calc(100% - 80px); }
+  .travel-map-scenic .map-legend em { width: 100%; }
+  .travel-map-scenic .map-source-note { font-size: 7px; right: 15px; }
+  .travel-map-scenic .map-city-status { left: 16px; bottom: 94px; max-width: calc(100% - 90px); }
+  .atlas-home .recent-section { padding: 25px 20px; }
+  .background-photo-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); max-height: 185px; }
+  .background-preview { height: 100px; }
+  .background-footer { flex-wrap: wrap; gap: 12px; }
+}

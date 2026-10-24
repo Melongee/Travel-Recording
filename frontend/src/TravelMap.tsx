@@ -25,14 +25,17 @@ interface TravelMapProps {
   onPick?: (lat: number, lng: number) => void;
   selectedPoint?: { lat: number; lng: number } | null;
   compact?: boolean;
+  scenic?: boolean;
 }
 
 type ProvinceProperties = { name?: string; fullname?: string; adcode?: string | number; id?: string | number; center?: [number,number] };
 type ProvinceFeature = Feature<Geometry, ProvinceProperties>;
 type ProvinceCollection = FeatureCollection<Geometry, ProvinceProperties>;
 
-// 初始视野包含资源中的南部岛屿，不裁掉海南省的南部几何。
+// 完整全国视野继续用于选点；首页按 2026-10-24 用户要求聚焦主体，允许南部岛屿超出初始视窗。
+// 只调整视野，不删除源几何；选省、手动平移和缩小仍可查看全部岛屿。
 const nationalBounds = L.latLngBounds([[3, 73], [54, 135.5]]);
+const homepageBounds = L.latLngBounds([[17, 73], [54, 135.5]]);
 
 function provinceName(name: string): string {
   return name.replace(/特别行政区$|维吾尔自治区$|壮族自治区$|回族自治区$|自治区$|省$|市$/g, '');
@@ -73,7 +76,7 @@ function provinceAnchor(feature:ProvinceFeature):L.LatLng {
 }
 
 export default function TravelMap(props: TravelMapProps) {
-  const { places, photos, province, pickMode = false, selectedPoint = null, compact = false } = props;
+  const { places, photos, province, pickMode = false, selectedPoint = null, compact = false, scenic = false } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const provincesRef = useRef<L.GeoJSON | null>(null);
@@ -92,7 +95,6 @@ export default function TravelMap(props: TravelMapProps) {
   const [selectedCity,setCity]=useState<CityFeature|null>(null);
   const [viewRequest,setViewRequest]=useState(0);
   const viewReadyRef=useRef(false);
-  const [showRoads,setShowRoads]=useState(true);
   const provinceCode=PROVINCES.find(item=>item[0]===provinceName(province))?.[1]||'';
   const city=selectedCity?.properties.provinceCode===provinceCode?selectedCity:null;
   const selectProvince=useCallback((name:string)=>{
@@ -103,7 +105,7 @@ export default function TravelMap(props: TravelMapProps) {
   },[]);
   const cityBoundaries=useCityBoundaries(mapRef,provinceCode,!pickMode&&!!province,city,selectCity);
   const mappedPlaces=usePlaceMarkers(mapRef,places,province,!pickMode&&!!data,city?.properties.adcode||'',props.onPlaceClick);
-  const roads=useOfflineRoads(mapRef,provinceCode,!pickMode&&!online&&!!data&&showRoads);
+  const roads=useOfflineRoads(mapRef,provinceCode,!pickMode&&!online&&!!data);
   useEffect(()=>setCity(null),[province]);
 
   useEffect(()=>{let active=true;api<GeographyState>('/geography/status').then(value=>{if(active)setGeography(value);}).catch(()=>{if(active)setOnlineError('地图配置读取失败，基础地图仍可使用');});return()=>{active=false;};},[]);
@@ -125,7 +127,9 @@ export default function TravelMap(props: TravelMapProps) {
     });
     mapRef.current = map;
     viewReadyRef.current = false;
-    map.fitBounds(nationalBounds, { padding: [22, 18], animate: false });
+    map.fitBounds(scenic&&!pickMode?homepageBounds:nationalBounds, scenic&&!pickMode
+      ?{paddingTopLeft:[28,Math.min(200,map.getSize().y*.26)],paddingBottomRight:[28,24],animate:false}
+      :{padding:[22,18],animate:false});
     markersRef.current = L.layerGroup().addTo(map);
     labelsRef.current = L.layerGroup().addTo(map);
     pickedRef.current = L.layerGroup().addTo(map);
@@ -241,16 +245,18 @@ export default function TravelMap(props: TravelMapProps) {
     if (!map || !data) return;
     const selected = data.features.find((feature) => featureName(feature) === provinceName(province));
     const provincial=selected&&!(pickMode&&pickOverview);
-    const bounds=!pickMode&&city?L.geoJSON(city).getBounds():provincial?getProvinceBounds(selected):nationalBounds;
+    const homeOverview=scenic&&!pickMode;
+    const bounds=!pickMode&&city?L.geoJSON(city).getBounds():provincial?getProvinceBounds(selected):homeOverview?homepageBounds:nationalBounds;
     const options:L.FitBoundsOptions=!pickMode&&city?{padding:[32,36],maxZoom:12}:provincial
       ?{padding:compact?[24,24]:[28,32],maxZoom:compact?6:12}
+      :homeOverview?{paddingTopLeft:[28,Math.min(200,map.getSize().y*.26)],paddingBottomRight:[28,24]}
       :{padding:compact?[24,18]:[28,22]};
     const animate=viewReadyRef.current&&!pickMode&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     viewReadyRef.current=true;
     // 层级导航只在这里移动视野。flyTo 会从当前画面接续并取消旧动画，不先将缩放吸附到固定档位。
     if(animate)map.flyToBounds(bounds,{...options,duration:0.75});
     else map.stop().fitBounds(bounds,{...options,animate:false});
-  }, [data, province, city, compact, pickMode, pickOverview, viewRequest]);
+  }, [data, province, city, compact, pickMode, pickOverview, viewRequest, scenic]);
 
   useEffect(() => {
     provincesRef.current?.resetStyle();
@@ -264,6 +270,8 @@ export default function TravelMap(props: TravelMapProps) {
     const draw = () => {
       markerGroup.clearLayers();
       labelGroup.clearLayers();
+      const scenicPhotos=scenic&&map.getSize().x>=1200;
+      const belowHeading=(point:L.Point)=>scenicPhotos&&point.x<600&&point.y<400;
       const selectedProvince = provinceName(province);
       // 全国地图只展示省份；选择省份后才展示该省的地点封面。
       const visiblePlaces = province && !(pickMode && pickOverview)
@@ -306,7 +314,8 @@ export default function TravelMap(props: TravelMapProps) {
           return summary.placeCount ? [{
             name,
             point: map.latLngToLayerPoint(provinceAnchor(feature)),
-            width: name.length * 11 + 48,
+            width: scenicPhotos ? name.length * 12 + 64 : name.length * 11 + 48,
+            below: belowHeading(map.latLngToContainerPoint(provinceAnchor(feature))),
           }] : [];
         }) : [];
         for (const feature of data.features) {
@@ -318,7 +327,9 @@ export default function TravelMap(props: TravelMapProps) {
           if (province && (name !== selectedProvince||!pickMode)) continue;
           const center = provinceAnchor(feature);
           if (showFootprint) {
-            const width = name.length * 11 + 48;
+            const width = scenicPhotos ? name.length * 12 + 64 : name.length * 11 + 48;
+            const cover=scenicPhotos?places.find(place=>provinceName(place.province)===name&&place.coverSrc)?.coverSrc:null;
+            const below=belowHeading(map.latLngToContainerPoint(center));
             const accessibleName = `${name}，${summary.placeCount} 个旅行地点，${summary.photoCount} 张照片，查看省内地点`;
             const marker = L.marker(center, {
               title: accessibleName,
@@ -326,10 +337,10 @@ export default function TravelMap(props: TravelMapProps) {
               keyboard: true,
               riseOnHover: true,
               icon: L.divIcon({
-                className: 'province-footprint-label',
-                iconSize: [width, 24],
-                iconAnchor: [width / 2, 12],
-                html: `<span class="province-footprint"><span class="province-footprint-dot"></span><span class="province-footprint-name">${escapeHtml(name)}</span><span class="province-footprint-count">${summary.placeCount}处</span></span>`,
+                className: `province-footprint-label ${scenicPhotos?'province-footprint-photo-label':''} ${below?'province-footprint-below':''}`,
+                iconSize: [width, scenicPhotos ? 56 : 24],
+                iconAnchor: [width / 2, scenicPhotos ? below ? -12 : 68 : 12],
+                html: `<span class="province-footprint">${cover?`<img src="${escapeHtml(cover)}" alt="" draggable="false"/>`:''}<span class="province-footprint-dot"></span><span class="province-footprint-name">${escapeHtml(name)}</span><span class="province-footprint-count">${summary.placeCount}处</span></span>`,
               }),
             });
             marker.bindTooltip(() => {
@@ -355,7 +366,7 @@ export default function TravelMap(props: TravelMapProps) {
           const point = map.latLngToLayerPoint(center);
           const overlapsFootprint = footprintLabels.some((label) =>
             Math.abs(label.point.x - point.x) < (label.width + name.length * 11) / 2 + 3
-            && Math.abs(label.point.y - point.y) < 22);
+            && (scenicPhotos ? label.below ? point.y > label.point.y - 14 && point.y < label.point.y + 90 : point.y > label.point.y - 90 && point.y < label.point.y + 14 : Math.abs(label.point.y - point.y) < 22));
           if (overlapsFootprint) continue;
           const nearby = visiblePlaces.some((place) => map.latLngToLayerPoint([place.lat, place.lng]).distanceTo(map.latLngToLayerPoint(center)) < 66);
           if (nearby) continue;
@@ -369,12 +380,14 @@ export default function TravelMap(props: TravelMapProps) {
     };
     draw();
     map.on('zoomend', draw);
+    map.on('resize', draw);
     return () => {
       map.off('zoomend', draw);
+      map.off('resize', draw);
       markerGroup.clearLayers();
       labelGroup.clearLayers();
     };
-  }, [data, places, photos, province, compact, pickMode, pickOverview]);
+  }, [data, places, photos, province, compact, pickMode, pickOverview, scenic]);
 
   useEffect(() => {
     const group = pickedRef.current;
@@ -407,7 +420,7 @@ export default function TravelMap(props: TravelMapProps) {
   };
 
   return (
-    <div className={`travel-map ${compact ? 'travel-map-compact' : ''} ${pickMode ? 'travel-map-picking' : ''}`}>
+    <div className={`travel-map ${compact ? 'travel-map-compact' : ''} ${pickMode ? 'travel-map-picking' : ''} ${scenic ? 'travel-map-scenic' : ''} ${online ? 'travel-map-online' : ''}`}>
       <div ref={containerRef} className="travel-map-canvas" role="region" aria-label={pickMode ? '选择地点位置的地图' : '旅行地图，点击省份或地点浏览照片'} />
       <div className="travel-map-topline">
         <nav className="map-breadcrumb" aria-label="地图位置">
@@ -415,20 +428,20 @@ export default function TravelMap(props: TravelMapProps) {
           {breadcrumbProvince && <><ChevronRight size={12} /><button type="button" onClick={resetProvinceView} aria-label={`查看${provinceName(breadcrumbProvince)}全省`}>{provinceName(breadcrumbProvince)}</button></>}
           {!pickMode&&city&&<><ChevronRight size={12}/><span>{city.properties.name}</span></>}
         </nav>
-        {!compact && <span className="map-offline-badge"><Layers3 size={12} />{online?'在线地图 · 天地图':'基础地图 · 离线可用'}</span>}
+        {!compact&&!scenic && <span className="map-offline-badge"><Layers3 size={12} />{online?'在线地图 · 天地图':'基础地图 · 离线可用'}</span>}
       </div>
       <div className="map-zoom-controls" aria-label="地图缩放">
         <button type="button" aria-label="放大地图" onClick={() => mapRef.current?.zoomIn()}><Plus size={17} /></button>
         <button type="button" aria-label="缩小地图" onClick={() => mapRef.current?.zoomOut()}><Minus size={17} /></button>
         <button type="button" aria-label="回到全国地图" onClick={resetNationalView}><RotateCcw size={14} /></button>
       </div>
-      <div className="map-online-control"><button type="button" disabled={!geography?.configured||geography.offline} onClick={()=>{setOnlineError('');setOnline(!online);}}>{online?'切回基础地图':'在线地图'}</button>{!geography?.configured&&<span>未配置 Key · 基础地图可用</span>}</div>
-      {!pickMode&&!online&&<div className="map-roads-control"><button type="button" aria-pressed={showRoads} onClick={()=>setShowRoads(value=>!value)} title="本地主干道路走向示意，不含完整道路编号">{showRoads?'隐藏主干路网':'显示主干路网'}</button>{showRoads&&(roads.status==='error'?<span role="status">路网未能加载 <button type="button" onClick={roads.retry}>重试</button></span>:roads.status==='loading'?<span role="status">正在读取本地路网…</span>:roads.empty?<span>此区域暂无主干道路数据</span>:<span><i className="map-highway-swatch"/>高速<i className="map-trunk-swatch"/>其他主干</span>)}</div>}
+      {scenic&&!pickMode?<div className="map-mode-control" role="group" aria-label="地图模式"><button type="button" aria-pressed={!online} onClick={()=>{setOnlineError('');setOnline(false);}}>离线地图</button><button type="button" aria-pressed={online} disabled={!geography?.configured||geography.offline} title={!geography?.configured?'尚未配置在线地图':geography.offline?'当前已设置为离线使用':undefined} onClick={()=>{setOnlineError('');setOnline(true);}}>在线地图</button></div>:<div className="map-online-control"><button type="button" disabled={!geography?.configured||geography.offline} onClick={()=>{setOnlineError('');setOnline(!online);}}>{online?'切回基础地图':'在线地图'}</button>{!geography?.configured&&<span>未配置 Key · 基础地图可用</span>}</div>}
+      {!pickMode&&!online&&roads.status==='error'&&<div className="map-road-error" role="status">路网未能加载，地图仍可浏览。<button type="button" onClick={roads.retry}>重试路网</button></div>}
       {!pickMode&&<MapPlaceList places={mappedPlaces.openPlaces} onClose={mappedPlaces.closePlaces} onSelect={props.onPlaceClick}/>}
       {onlineError&&<div className="map-online-error" role="status">{onlineError}</div>}
       {!pickMode&&province&&<div className="map-city-status" role="status">{cityBoundaries.status==='loading'?'正在读取本地市界…':cityBoundaries.status==='error'?<>市界未能加载，省份和地点仍可浏览。<button type="button" onClick={cityBoundaries.retry}>重试</button></>:cityBoundaries.empty?'当前资源未提供该区域的下级市界':city?'点击省份名称返回全省，或选择其他市界':'点击市界放大 · 仅用于地图浏览'}</div>}
       {!compact && <div className="map-legend"><span className="map-legend-visited" />留下回忆的省份<span className="map-legend-rest" />待出发{!province && !pickMode && places.length > 0 && <em>数字为旅行地点数</em>}</div>}
-      <div className="map-source-note">{online&&<><a href="https://www.tianditu.gov.cn/" target="_blank" rel="noreferrer">© 天地图</a> · 在线底图 / </>}cn-atlas / CTAmap 2023{!pickMode&&!online&&showRoads?' · Natural Earth 路网':''} · 示意</div>
+      <div className="map-source-note">{online&&<><a href="https://www.tianditu.gov.cn/" target="_blank" rel="noreferrer">© 天地图</a> · 在线底图 / </>}cn-atlas / CTAmap 2023{!pickMode&&!online?' · Natural Earth 路网':''} · 示意</div>
       {pickMode && loadState === 'ready' && <div className="map-pick-tip"><MapPin size={13} />点击地图，选择地点位置</div>}
       {loadState !== 'ready' && <div className="map-status" role={loadState === 'error' ? 'alert' : 'status'}>
         <MapPin size={24} />
