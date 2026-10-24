@@ -141,7 +141,13 @@ public class LibraryService {
         boolean fresh=id==null; c.id=fresh?UUID.randomUUID().toString():id; c.placeId=input.placeId; c.name=input.name.trim();
         if (fresh) categories.insert(c); else categories.updateById(c); return c;
     }
-    public record Classification(@NotEmpty @Size(max=1000) List<@NotBlank String> photoIds,String placeId,@NotNull @Size(max=100) List<@NotBlank String> categoryIds) {}
+    public record Classification(@NotEmpty @Size(max=1000) List<@NotBlank String> photoIds,String placeId,
+        @NotNull @Size(max=100) List<@NotBlank String> categoryIds,
+        @Size(max=100) List<@NotBlank @Size(max=24) String> newCategoryNames,String sourcePlaceId) {
+        public Classification(List<String> photoIds,String placeId,List<String> categoryIds) {
+            this(photoIds,placeId,categoryIds,List.of(),null);
+        }
+    }
     public record PlacePhotos(@NotEmpty @Size(max=1000) List<@NotBlank String> photoIds,@NotNull @Size(max=100) List<@NotBlank String> categoryIds) {}
     @Transactional
     public void addPhotosToPlace(String placeId,PlacePhotos input) {
@@ -149,7 +155,22 @@ public class LibraryService {
     }
     @Transactional
     public void classify(Classification input) {
-        saveClassification(input,false);
+        List<String> names=input.newCategoryNames==null?List.of():input.newCategoryNames;
+        Set<String> normalized=new LinkedHashSet<>();
+        for(String name:names) {
+            if(name==null||name.isBlank()||name.length()>24)throw new IllegalArgumentException("类别名称需为 1～24 个字符");
+            if(!normalized.add(name.trim()))throw new IllegalArgumentException("新类别名称不能重复");
+        }
+        Set<String> ids=new LinkedHashSet<>(input.categoryIds);
+        if(ids.size()+normalized.size()>100)throw new IllegalArgumentException("一次最多选择 100 个类别");
+        if(!normalized.isEmpty()&&(input.placeId==null||places.selectById(input.placeId)==null))throw new IllegalArgumentException("请先选择目标地点");
+        if(input.sourcePlaceId!=null&&!Objects.equals(input.sourcePlaceId,input.placeId))throw new IllegalArgumentException("在该地点归类不能更换地点");
+        for(String name:normalized) {
+            if(categories.selectCount(new QueryWrapper<Category>().eq("place_id",input.placeId).eq("name",name))>0)
+                throw new IllegalArgumentException("该地点已有同名类别，请选择已有类别");
+            ids.add(saveCategory(null,new CategoryInput(input.placeId,name)).id);
+        }
+        saveClassification(new Classification(input.photoIds,input.placeId,new ArrayList<>(ids),List.of(),input.sourcePlaceId),false);
     }
     private void saveClassification(Classification input,boolean append) {
         Set<String> photoIds=new LinkedHashSet<>(input.photoIds), categoryIds=new LinkedHashSet<>(input.categoryIds);
@@ -158,6 +179,8 @@ public class LibraryService {
         for (String id:photoIds) {
             Photo photo=requirePhoto(id);
             if(Boolean.TRUE.equals(photo.excluded)) throw new IllegalArgumentException("请先恢复已排除的照片，再调整归类");
+            if(input.sourcePlaceId!=null&&!Objects.equals(photo.placeId,input.sourcePlaceId))
+                throw new IllegalArgumentException("照片已不在当前地点，请刷新后重新选择");
             selected.put(id,photo);
         }
         for (String id:categoryIds) {
