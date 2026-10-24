@@ -31,7 +31,6 @@ export function useCityBoundaries(mapRef:RefObject<L.Map|null>,provinceCode:stri
     const labels=L.layerGroup().addTo(map);
     const focus=(feature:CityFeature)=>{
       onSelect(feature);
-      map.stop().fitBounds(L.geoJSON(feature).getBounds(),{padding:[32,36],maxZoom:12,animate:false});
     };
     const layer=L.geoJSON(resource.data,{
       pane:'city-boundaries',

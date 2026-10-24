@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { ChevronRight, Home, Layers3, MapPin, Minus, Plus, RotateCcw } from 'lucide-react';
@@ -72,10 +72,6 @@ function provinceAnchor(feature:ProvinceFeature):L.LatLng {
   return center?L.latLng(center[1],center[0]):getProvinceBounds(feature).getCenter();
 }
 
-function fitProvince(map:L.Map,feature:ProvinceFeature,compact:boolean) {
-  map.stop().fitBounds(getProvinceBounds(feature),{padding:compact?[24,24]:[28,32],maxZoom:compact?6:12,animate:false});
-}
-
 export default function TravelMap(props: TravelMapProps) {
   const { places, photos, province, pickMode = false, selectedPoint = null, compact = false } = props;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,10 +89,19 @@ export default function TravelMap(props: TravelMapProps) {
   const [geography,setGeography]=useState<GeographyState|null>(null);
   const [online,setOnline]=useState(false),[onlineError,setOnlineError]=useState('');
   const onlineRef=useRef(false);onlineRef.current=online;
-  const [city,setCity]=useState<CityFeature|null>(null);
+  const [selectedCity,setCity]=useState<CityFeature|null>(null);
+  const [viewRequest,setViewRequest]=useState(0);
+  const viewReadyRef=useRef(false);
   const [showRoads,setShowRoads]=useState(true);
   const provinceCode=PROVINCES.find(item=>item[0]===provinceName(province))?.[1]||'';
-  const cityBoundaries=useCityBoundaries(mapRef,provinceCode,!pickMode&&!!province,city,setCity);
+  const city=selectedCity?.properties.provinceCode===provinceCode?selectedCity:null;
+  const selectProvince=useCallback((name:string)=>{
+    setCity(null);setViewRequest(key=>key+1);latestRef.current.onProvinceChange(name);
+  },[]);
+  const selectCity=useCallback((feature:CityFeature)=>{
+    setCity(feature);setViewRequest(key=>key+1);
+  },[]);
+  const cityBoundaries=useCityBoundaries(mapRef,provinceCode,!pickMode&&!!province,city,selectCity);
   const mappedPlaces=usePlaceMarkers(mapRef,places,province,!pickMode&&!!data,city?.properties.adcode||'',props.onPlaceClick);
   const roads=useOfflineRoads(mapRef,provinceCode,!pickMode&&!online&&!!data&&showRoads);
   useEffect(()=>setCity(null),[province]);
@@ -119,6 +124,7 @@ export default function TravelMap(props: TravelMapProps) {
       doubleClickZoom: true,
     });
     mapRef.current = map;
+    viewReadyRef.current = false;
     map.fitBounds(nationalBounds, { padding: [22, 18], animate: false });
     markersRef.current = L.layerGroup().addTo(map);
     labelsRef.current = L.layerGroup().addTo(map);
@@ -147,7 +153,7 @@ export default function TravelMap(props: TravelMapProps) {
     // A wide viewport can cross 180° and otherwise request x >= 2^z. Explicit
     // bounds clip those tiles without changing the user's zoom or world-wrapping.
     const bounds=L.latLngBounds([[-85.0511287798,-180],[85.0511287798,180]]);
-    const layers=['vec','cva'].map(layer=>L.tileLayer(`/api/geography/tiles/${layer}/{z}/{x}/{y}`,{minZoom:1,maxZoom:18,noWrap:true,bounds,keepBuffer:1,updateWhenIdle:true}));
+    const layers=['vec','cva'].map(layer=>L.tileLayer(`/api/geography/tiles/${layer}/{z}/{x}/{y}`,{minZoom:1,maxZoom:18,noWrap:true,bounds,keepBuffer:1,updateWhenIdle:true,updateWhenZooming:false}));
     let failed=false;
     const fallback=()=>{if(!failed){failed=true;setOnline(false);setOnlineError('在线地图暂不可用，已切回基础地图；地点和照片仍可使用');}};
     const recovery=layers.map(layer=>watchTileRecovery(layer,fallback));
@@ -204,9 +210,7 @@ export default function TravelMap(props: TravelMapProps) {
             L.DomEvent.stopPropagation(event);
             return;
           }
-          setCity(null);
-          latestRef.current.onProvinceChange(name);
-          fitProvince(map,feature,!!latestRef.current.compact);
+          selectProvince(name);
           L.DomEvent.stopPropagation(event);
         });
         featureLayer.bindTooltip(() => {
@@ -223,7 +227,7 @@ export default function TravelMap(props: TravelMapProps) {
       const polygon=item as L.Polygon&{feature:ProvinceFeature};const element=polygon.getElement();if(!element)return;
       const name=featureName(polygon.feature);element.setAttribute('role','button');element.setAttribute('tabindex','0');
       element.setAttribute('aria-label',`${name}，查看省内市界和地点`);
-      element.addEventListener('keydown',event=>{const key=(event as KeyboardEvent).key;if(key==='Enter'||key===' '){event.preventDefault();event.stopPropagation();setCity(null);latestRef.current.onProvinceChange(name);fitProvince(map,polygon.feature,!!latestRef.current.compact);}});
+      element.addEventListener('keydown',event=>{const key=(event as KeyboardEvent).key;if(key==='Enter'||key===' '){event.preventDefault();event.stopPropagation();selectProvince(name);}});
     });
     provincesRef.current = layer;
     return () => {
@@ -236,12 +240,17 @@ export default function TravelMap(props: TravelMapProps) {
     const map = mapRef.current;
     if (!map || !data) return;
     const selected = data.features.find((feature) => featureName(feature) === provinceName(province));
-    if (selected && !(pickMode && pickOverview)) {
-      fitProvince(map,selected,compact);
-    } else {
-      map.fitBounds(nationalBounds, { padding: compact ? [24, 18] : [28, 22], animate: false });
-    }
-  }, [data, province, compact, pickMode, pickOverview]);
+    const provincial=selected&&!(pickMode&&pickOverview);
+    const bounds=!pickMode&&city?L.geoJSON(city).getBounds():provincial?getProvinceBounds(selected):nationalBounds;
+    const options:L.FitBoundsOptions=!pickMode&&city?{padding:[32,36],maxZoom:12}:provincial
+      ?{padding:compact?[24,24]:[28,32],maxZoom:compact?6:12}
+      :{padding:compact?[24,18]:[28,22]};
+    const animate=viewReadyRef.current&&!pickMode&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    viewReadyRef.current=true;
+    // 层级导航只在这里移动视野。flyTo 会从当前画面接续并取消旧动画，不先将缩放吸附到固定档位。
+    if(animate)map.flyToBounds(bounds,{...options,duration:0.75});
+    else map.stop().fitBounds(bounds,{...options,animate:false});
+  }, [data, province, city, compact, pickMode, pickOverview, viewRequest]);
 
   useEffect(() => {
     provincesRef.current?.resetStyle();
@@ -329,7 +338,7 @@ export default function TravelMap(props: TravelMapProps) {
             }, { direction: 'top', offset: [0, -10], className: 'province-hover' });
             marker.on('click', (event) => {
               L.DomEvent.stopPropagation(event);
-              latestRef.current.onProvinceChange(name);
+              selectProvince(name);
             });
             marker.addTo(labelGroup);
             const element = marker.getElement();
@@ -386,7 +395,7 @@ export default function TravelMap(props: TravelMapProps) {
 
   const resetNationalView = () => {
     setCity(null);
-    mapRef.current?.fitBounds(nationalBounds, { padding: compact ? [24, 18] : [28, 22], animate: false });
+    setViewRequest(key=>key+1);
     // 选点时的全国视野只是导航操作，不能清空地点表单的所属省份。
     if (pickMode) setPickOverview(true);
     else props.onProvinceChange('');
@@ -394,8 +403,7 @@ export default function TravelMap(props: TravelMapProps) {
   const breadcrumbProvince = pickMode && pickOverview ? '' : province;
   const resetProvinceView=()=>{
     setCity(null);
-    const feature=data?.features.find(item=>featureName(item)===provinceName(province));
-    if(feature&&mapRef.current)fitProvince(mapRef.current,feature,compact);
+    setViewRequest(key=>key+1);
   };
 
   return (
