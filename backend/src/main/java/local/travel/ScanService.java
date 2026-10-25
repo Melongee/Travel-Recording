@@ -23,6 +23,7 @@ public class ScanService {
     private final JdbcTemplate jdbc;
     private final LibraryMaintenance maintenance;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private volatile boolean stopping;
     private volatile Status status = new Status("idle", 0, 0, 0, 0, 0, 0, List.of());
     public record Status(String state, int discovered, int added, int updated, int unchanged, int failed, int missing, List<String> errors) {}
     ScanService(RootMapper roots, PhotoMapper photos, ImageService images, AppPaths paths, JdbcTemplate jdbc, LibraryMaintenance maintenance) {
@@ -72,6 +73,7 @@ public class ScanService {
         return addRoot(root.path);
     }
     public synchronized Status start() {
+        if (stopping) throw new LibraryMaintenance.Busy("应用正在退出，请稍后重新打开");
         if (status.state.equals("running")) return status;
         status=new Status("running",0,0,0,0,0,0,List.of());
         worker.submit(this::run); return status;
@@ -88,18 +90,21 @@ public class ScanService {
         int[] c=new int[6]; List<String> errors=new ArrayList<>();
         try {
             for (Root root:roots.selectList(new QueryWrapper<Root>().eq("enabled",true))) {
+                if (stopping) break;
                 Path rootPath=Path.of(root.path);
                 boolean[] complete={true}; Set<String> seen=new HashSet<>();
                 try {
                     if (!Files.isDirectory(rootPath) || isLink(rootPath) || !normalized(rootPath.toRealPath()).equals(root.normalizedPath)) throw new IOException("根目录不可用或已被替换为链接");
                     Files.walkFileTree(rootPath,new SimpleFileVisitor<>() {
                         @Override public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                            if (stopping) { complete[0]=false; return FileVisitResult.TERMINATE; }
                             if (Thread.currentThread().isInterrupted()) throw new IOException("扫描已中断");
                             if (isLink(dir)) return FileVisitResult.SKIP_SUBTREE;
                             if (!dir.toRealPath().startsWith(rootPath)) { complete[0]=false; return FileVisitResult.SKIP_SUBTREE; }
                             return FileVisitResult.CONTINUE;
                         }
                         @Override public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                            if (stopping) { complete[0]=false; return FileVisitResult.TERMINATE; }
                             String name=file.getFileName().toString().toLowerCase(Locale.ROOT);
                             if (!attrs.isRegularFile() || !name.matches(".*\\.(jpg|jpeg|png|webp)$")) return FileVisitResult.CONTINUE;
                             c[0]++;
@@ -149,7 +154,7 @@ public class ScanService {
                             if (e!=null) { complete[0]=false; addError(errors,"部分目录读取失败"); } return FileVisitResult.CONTINUE;
                         }
                     });
-                    if (complete[0]) {
+                    if (complete[0] && !stopping) {
                         for (Photo old:photos.selectList(null)) if (Path.of(old.path).startsWith(rootPath) && !seen.contains(old.normalizedPath)) {
                             jdbc.update("UPDATE photos SET availability='missing' WHERE id=?",old.id); c[5]++;
                         }
@@ -165,5 +170,9 @@ public class ScanService {
     }
     private static void addError(List<String> errors,String error) { if (errors.size()<50) errors.add(error); }
     private void publish(int[] c,List<String> e,String state) { status=new Status(state,c[0],c[1],c[2],c[3],c[4],c[5],List.copyOf(e)); }
-    @PreDestroy void close() { worker.shutdownNow(); }
+    @PreDestroy void close() {
+        synchronized (this) { stopping=true; worker.shutdown(); }
+        // Finish the current photo/SQL operation before Spring closes the database and releases its lock.
+        worker.close();
+    }
 }
