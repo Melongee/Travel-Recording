@@ -38,8 +38,10 @@ function readBounds() {
 
 async function start() {
   Menu.setApplicationMenu(null);
-  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  const allowClipboardWrite = (webContents, permission, requestingOrigin) => permission === 'clipboard-sanitized-write' &&
+    !!origin && requestingOrigin === origin && webContents === win?.webContents;
+  session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => callback(allowClipboardWrite(wc, permission, details.requestingUrl ? new URL(details.requestingUrl).origin : '')));
+  session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin) => allowClipboardWrite(wc, permission, requestingOrigin));
   win = new BrowserWindow({ width: 1440, height: 960, minWidth: 1024, minHeight: 720, ...readBounds(),
     title: '旅迹', backgroundColor: '#f4f2ed', autoHideMenuBar: true,
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, spellcheck: false } });
