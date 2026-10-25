@@ -67,7 +67,7 @@ async function start() {
   if (!fs.existsSync(config)) fs.writeFileSync(config, '# Optional Tianditu server key; restart after editing.\napp.geography.tianditu-key=\n', { flag: 'wx' });
   const resources = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'runtime');
   service = launchService({ java: path.join(resources, 'java', 'bin', 'java.exe'), jar: path.join(resources, 'server', 'travel-recording.jar'), dataDir, config,
-    onExit: info => { if (!info.stopping && !quitting) failure(new Error(`服务意外退出（${info.code}），请查看日志后重新打开。`)); } });
+    onExit: info => { if (origin && !info.stopping && !quitting) failure(new Error(`服务意外退出（${info.code}），请查看日志后重新打开。`)); } });
   origin = await service.ready;
   if (!quitting) await win.loadURL(origin);
 }
