@@ -1,0 +1,17 @@
+{
+  "java": {
+    "vendor": "Eclipse Temurin",
+    "version": "21.0.12.1+1-LTS",
+    "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip",
+    "sha256": "d35f31e712f0fcf6ac5a093edc90204fbff22f720ba3950bd09d331d5e621636",
+    "source": "https://github.com/adoptium/jdk21u/tree/jdk-21.0.12.1%2B1",
+    "license": "GPL-2.0 with Classpath Exception; full legal directory and NOTICE retained"
+  },
+  "electron": {
+    "version": "45.0.0",
+    "url": "https://github.com/electron/electron/releases/download/v45.0.0/electron-v45.0.0-win32-x64.zip",
+    "sha256": "ae53887a23bb640369c93dbd38c408a2af5c0deb86f2fa76c6c244cb444b7f47",
+    "source": "https://github.com/electron/electron/tree/v45.0.0",
+    "license": "MIT; LICENSE and LICENSES.chromium.html retained"
+  }
+}

@@ -1,4 +1,5 @@
-﻿$ErrorActionPreference = 'Stop'
+﻿param([switch]$DesktopResources)
+$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Toolchain.ps1')
 $java = Find-TravelJava
 $env:JAVA_HOME = Split-Path -Parent (Split-Path -Parent $java)
@@ -36,6 +37,10 @@ try {
     }
     New-Item -ItemType Directory -Path $static -Force | Out-Null
     Copy-Item -Path 'frontend\dist\*' -Destination $static -Recurse -Force
+    if ($DesktopResources) {
+        # Exclude development notes without changing their source copy.
+        Remove-Item -LiteralPath (Join-Path $static 'assets/README.md') -ErrorAction SilentlyContinue
+    }
     Push-Location backend
     try {
         & .\mvnw.cmd -B -ntp -gs $settings -s $settings clean package

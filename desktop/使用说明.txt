@@ -1,0 +1,18 @@
+旅迹 0.1.0 · Windows x64 解压即用版
+
+将整个 ZIP 解压到本地文件夹，双击“旅迹.exe”。保留随包的其他文件。无需安装 Java、Node.js、Maven，也无需运行终端命令。第一次启动请等待准备页面结束。
+
+照片原文件只读，不上传、移动、改名或删除。点击左下角设置齿轮，添加目录后手动扫描。添加目录本身不会扫描。离线地图和本地整理无需个人 Key。
+
+数据位置：%LOCALAPPDATA%\TravelRecording\data
+配置位置：%LOCALAPPDATA%\TravelRecording\config\application-local.properties
+窗口和浏览器状态也保存在 TravelRecording 用户目录。程序文件夹内不保存图库。在线地图可选：在配置中填写 app.geography.tianditu-key=个人天地图服务端Key，退出重开。
+
+更新：关闭旅迹，等待窗口退出，再把新版 ZIP 解压到另一文件夹并运行。仍使用相同用户数据，不要删除用户目录。不要在运行中复制 library.db 作为备份；请在设置内导出备份。备份不含原图，原图请另行备份。
+
+恢复：仅支持恢复到空图库；设置内选择 ZIP、预览后确认。恢复后的照片目录需要再次确认访问。已有图库不可覆盖或合并。需要另建空图库时，可创建旅迹.exe的快捷方式，在目标末尾添加空格及 --travel-user-dir="D:\旅迹新用户目录"；选择全新目录，该目录下将建立 data 和 config。不要指向现有照片目录或原图库。
+
+再次双击会唤起现有窗口；同一图库不能被其他桌面或源码服务同时打开。关闭窗口会等待当前照片处理及数据保存完成，然后退出。若启动失败，按提示查看日志：用户数据目录下 logs\desktop-service.log 和 logs\application.log。确认同一图库的旧入口已退出后再开，不要手动删除锁文件或强停其他 Java。
+
+系统：Windows x64 桌面环境。此包未购买签名证书，系统可能显示未识别发布者。请自行核对下载来源及 SHA256。
+地图仅用于旅行记录，不用于导航，不是经审定的标准地图。许可与来源见 licenses、LICENSE、LICENSES.chromium.html、resources\java\legal。

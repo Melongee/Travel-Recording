@@ -5,7 +5,7 @@ export default function GeographyPanel(){
   const status=useQuery({queryKey:['geography'],queryFn:()=>api<GeographyState>('/geography/status')});
   return <section className="settings-card data-location"><h2>在线地图与地名搜索</h2><p>{status.data?.message||status.error?.message||'正在检查地图配置…'}</p>
     <p>默认使用本地基础地图。点击“在线地图”，或在地点表单输入至少 2 个字并停顿后才请求天地图；候选在全国搜索，选中后自动匹配省份。照片文件不会发送给地图服务。</p>
-    <p>需要天地图“服务端”Key。配置方式见项目 config/application-local.properties.example；复制为 application-local.properties，填写 Key 后重启。此文件不进入 Git 或相册备份。</p>
+    <p>需要天地图“服务端”Key。桌面版请编辑 %LOCALAPPDATA%\TravelRecording\config\application-local.properties；独立图库使用所选用户目录下的 config。填写 app.geography.tianditu-key 后退出重开。源码版使用项目 config 中的配置示例。备份不包含 Key。</p>
     <p>在线坐标按旅行地图用途近似对齐，并保留供应商原始坐标和来源。基础省界仍为交互示意，正式地图内容尚待核验。</p>
   </section>;
 }
