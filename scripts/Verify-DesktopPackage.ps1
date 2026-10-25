@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Zip)
+﻿param([Parameter(Mandatory=$true)][string]$Zip)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead([IO.Path]::GetFullPath($Zip))
