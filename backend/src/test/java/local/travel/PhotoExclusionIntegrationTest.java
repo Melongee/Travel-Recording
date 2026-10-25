@@ -53,7 +53,7 @@ class PhotoExclusionIntegrationTest {
         Files.move(parked,a);scan();
         Path archive=backups.export();BackupService.Inspection inspection;
         try(var input=Files.newInputStream(archive)){inspection=backups.inspect(input);}
-        assertEquals(2,inspection.manifest().schemaVersion());
+        assertEquals(3,inspection.manifest().schemaVersion());
         for(String table:List.of("photo_categories","photos","categories","places","photo_roots"))jdbc.update("DELETE FROM "+table);
         backups.restore(inspection.token(),true);
         assertEquals(2L,library.overview().get("excludedCount"));assertEquals(1,library.query(null,null,false,"","name",0,100).total());
