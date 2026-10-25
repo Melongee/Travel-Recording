@@ -52,7 +52,7 @@ try {
     [IO.Compression.ZipFile]::CreateFromDirectory($bundle, $zip, [IO.Compression.CompressionLevel]::Optimal, $true)
     & (Join-Path $PSScriptRoot 'Verify-DesktopPackage.ps1') -Zip $zip
     $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-    Set-Content -LiteralPath ($zip+'.sha256') -Encoding ascii -Value ($hash+'  '+[IO.Path]::GetFileName($zip))
+    [IO.File]::WriteAllText(($zip+'.sha256'),($hash+'  '+[IO.Path]::GetFileName($zip)+[Environment]::NewLine),(New-Object Text.UTF8Encoding $false))
     Write-Host "ZIP: $zip"
     Write-Host "SHA256: $hash"
 } finally { Pop-Location }
